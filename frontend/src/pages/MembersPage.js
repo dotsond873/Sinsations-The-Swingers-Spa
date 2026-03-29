@@ -62,6 +62,7 @@ export default function MembersPage({ user: propUser }) {
                     <div className="flex items-center gap-2">
                       <h3 className="text-xl font-bold text-[#F7F5F0]">{m.name}</h3>
                       {m.is_premium && <Crown size={16} weight="fill" className="text-[#D4AF37]" />}
+                      {m.is_verified && <span className="px-2 py-0.5 rounded text-xs bg-[#4CAF50] text-white font-bold">✓</span>}
                     </div>
                     {m.age && <p className="text-[#A8A3B2] text-sm">{m.age} • {m.gender}</p>}
                     {m.location && <div className="flex items-center gap-1 text-[#A8A3B2] text-sm"><MapPin size={14} />{m.location}</div>}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SignOut, House, Users, MessageCircle, ChatCircle, Article, Fire, Trophy, ShieldCheck } from '@phosphor-icons/react';
+import { SignOut, House, Users, Fire, Trophy, ShieldCheck } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
@@ -33,9 +33,6 @@ export default function Navigation({ user }) {
           <div className="hidden md:flex items-center gap-6">
             <NavLink icon={<House size={20} />} label="Dashboard" onClick={() => navigate('/dashboard')} />
             <NavLink icon={<Users size={20} />} label="Members" onClick={() => navigate('/members')} />
-            <NavLink icon={<MessageCircle size={20} />} label="Messages" onClick={() => navigate('/messages')} premium={!user?.is_premium} />
-            <NavLink icon={<ChatCircle size={20} />} label="Chatrooms" onClick={() => navigate('/chatrooms')} premium={!user?.is_premium} />
-            <NavLink icon={<Article size={20} />} label="Forums" onClick={() => navigate('/forums')} />
             <NavLink icon={<Fire size={20} />} label="Hot Wife" onClick={() => navigate('/hotwife')} />
             <NavLink icon={<Trophy size={20} />} label="Contest" onClick={() => navigate('/contest')} />
             {user?.email && user.email.includes('admin') && (

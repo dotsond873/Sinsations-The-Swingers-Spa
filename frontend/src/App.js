@@ -17,6 +17,7 @@ import HotWifePage from './pages/HotWifePage';
 import ContestPage from './pages/ContestPage';
 import AdminPage from './pages/AdminPage';
 import PaymentSuccessPage from './pages/PaymentSuccessPage';
+import ReferralPage from './pages/ReferralPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -97,6 +98,7 @@ function AppRouter() {
       <Route path="/personals" element={<ProtectedRoute><PersonalsPage /></ProtectedRoute>} />
       <Route path="/hotwife" element={<ProtectedRoute><HotWifePage /></ProtectedRoute>} />
       <Route path="/contest" element={<ProtectedRoute><ContestPage /></ProtectedRoute>} />
+      <Route path="/referral" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
     </Routes>
   );

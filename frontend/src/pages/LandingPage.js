@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Users, MessageCircle, Shield } from '@phosphor-icons/react';
+import { Heart, Users, Shield } from '@phosphor-icons/react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -77,9 +77,9 @@ export default function LandingPage() {
               description="Browse verified members in your area"
             />
             <FeatureCard
-              icon={<MessageCircle size={48} weight="duotone" />}
-              title="Private Messaging"
-              description="Connect privately with other members"
+              icon={<Heart size={48} weight="duotone" />}
+              title="Premium Features"
+              description="Exclusive content and features for members"
             />
             <FeatureCard
               icon={<Heart size={48} weight="duotone" />}

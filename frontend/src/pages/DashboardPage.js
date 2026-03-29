@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
-import { Upload, Crown, Users, MessageCircle, Fire, Trophy, SignOut } from '@phosphor-icons/react';
+import { Upload, Crown, Users, Fire, Trophy, SignOut, ShieldCheck, Gift } from '@phosphor-icons/react';
 import Navigation from '../components/Navigation';
 
 export default function DashboardPage({ user: propUser }) {
@@ -144,6 +144,12 @@ export default function DashboardPage({ user: propUser }) {
                 {user.premium_plan?.toUpperCase()} MEMBER
               </span>
             )}
+            {user.is_verified && (
+              <span className="px-4 py-1 rounded-full bg-[#4CAF50] text-white text-sm font-bold flex items-center gap-2">
+                <ShieldCheck size={16} weight="fill" />
+                VERIFIED
+              </span>
+            )}
             <span className={`px-4 py-1 rounded-full text-sm font-bold ${
               user.approval_status === 'approved' ? 'bg-[#4CAF50] text-[#0B0A0F]' : 'bg-[#757180] text-[#F7F5F0]'
             }`}>
@@ -193,12 +199,11 @@ export default function DashboardPage({ user: propUser }) {
             testId="browse-members-card"
           />
           <QuickAction
-            icon={<MessageCircle size={32} weight="duotone" />}
-            title="Messages"
-            description="Private conversations"
-            onClick={() => navigate('/messages')}
-            locked={!user.is_premium}
-            testId="messages-card"
+            icon={<Gift size={32} weight="duotone" />}
+            title="Referrals"
+            description="Share & earn rewards"
+            onClick={() => navigate('/referral')}
+            testId="referral-card"
           />
           <QuickAction
             icon={<Fire size={32} weight="duotone" />}
