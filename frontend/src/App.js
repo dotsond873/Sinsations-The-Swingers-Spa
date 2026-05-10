@@ -7,6 +7,7 @@ import GuidelinesPage from './pages/GuidelinesPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
+import VerificationPage from './pages/VerificationPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import MembersPage from './pages/MembersPage';
@@ -18,6 +19,7 @@ import HotWifePage from './pages/HotWifePage';
 import ContestPage from './pages/ContestPage';
 import AdminPage from './pages/AdminPage';
 import ReferralPage from './pages/ReferralPage';
+import LikesPage from './pages/LikesPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -89,6 +91,7 @@ function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
       
       <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupPage /></ProtectedRoute>} />
+      <Route path="/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/profile/:userId" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute><MembersPage /></ProtectedRoute>} />
@@ -99,6 +102,7 @@ function AppRouter() {
       <Route path="/hotwife" element={<ProtectedRoute><HotWifePage /></ProtectedRoute>} />
       <Route path="/contest" element={<ProtectedRoute><ContestPage /></ProtectedRoute>} />
       <Route path="/referral" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
+      <Route path="/likes" element={<ProtectedRoute><LikesPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
     </Routes>
   );

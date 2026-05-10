@@ -60,6 +60,28 @@ export default function DashboardPage({ user: propUser }) {
           </div>
         )}
 
+        {/* Get Verified Banner */}
+        {!user.is_verified && (
+          <div data-testid="get-verified-banner" className="mb-8 glass-effect p-6 rounded-2xl border-2 border-[#D4AF37]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <ShieldCheck size={40} weight="fill" className="text-[#D4AF37]" />
+                <div>
+                  <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Get Verified</h3>
+                  <p className="text-[#A8A3B2] text-sm">Prove you're real and earn a verified badge</p>
+                </div>
+              </div>
+              <button
+                data-testid="get-verified-btn"
+                onClick={() => navigate('/verification')}
+                className="px-6 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all"
+              >
+                Get Verified
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Welcome Section */}
         <div className="mb-12">
           <h1 className="heading-font text-4xl md:text-5xl font-bold text-[#F7F5F0] mb-3">

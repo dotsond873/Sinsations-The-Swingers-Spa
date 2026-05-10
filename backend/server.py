@@ -726,38 +726,340 @@ async def get_referral_stats(current_user: User = Depends(get_current_user)):
 
 # ============ VERIFICATION SYSTEM ============
 
-@api_router.post("/verification/request")
-async def request_verification(current_user: User = Depends(get_current_user)):
+class VerificationRequest(BaseModel):
+    method: str  # "id_selfie" or "custom_task"
+    id_photo_path: Optional[str] = None
+    selfie_photo_path: Optional[str] = None
+    task_photo_path: Optional[str] = None
+
+@api_router.post("/verification/submit")
+async def submit_verification(request: Request, current_user: User = Depends(get_current_user)):
+    data = await request.json()
+    method = data.get("method")  # "id_selfie" or "custom_task"
+    
     if current_user.is_verified:
         raise HTTPException(status_code=400, detail="Already verified")
-    
-    if not current_user.is_premium:
-        raise HTTPException(status_code=403, detail="Premium membership required for verification")
     
     verification_doc = {
         "verification_id": f"verify_{uuid.uuid4().hex[:12]}",
         "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "user_email": current_user.email,
+        "method": method,
+        "id_photo_path": data.get("id_photo_path"),
+        "selfie_photo_path": data.get("selfie_photo_path"),
+        "task_photo_path": data.get("task_photo_path"),
+        "custom_task": data.get("custom_task"),
         "status": "pending",
+        "admin_notes": None,
         "requested_at": datetime.now(timezone.utc).isoformat()
     }
     await db.verifications.insert_one(verification_doc)
-    return {"message": "Verification request submitted"}
+    
+    # Create admin notification
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_request",
+        "title": "New Verification Request",
+        "message": f"{current_user.name} submitted a verification request ({method})",
+        "user_id": current_user.user_id,
+        "for_admins": True,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Verification submitted for review", "verification_id": verification_doc["verification_id"]}
 
-@api_router.post("/admin/verify-user/{user_id}")
-async def verify_user(user_id: str, admin: User = Depends(require_admin)):
+@api_router.get("/verification/status")
+async def get_verification_status(current_user: User = Depends(get_current_user)):
+    verification = await db.verifications.find_one(
+        {"user_id": current_user.user_id},
+        {"_id": 0}
+    )
+    if not verification:
+        return {"status": "not_submitted", "is_verified": current_user.is_verified}
+    return {"status": verification["status"], "is_verified": current_user.is_verified, "verification": verification}
+
+@api_router.post("/verification/request-task")
+async def request_custom_task(current_user: User = Depends(get_current_user)):
+    """Request admin to assign a custom verification task (for users without ID)"""
+    existing = await db.verifications.find_one({"user_id": current_user.user_id, "status": "awaiting_task"})
+    if existing:
+        return {"message": "Task request already submitted", "verification_id": existing["verification_id"]}
+    
+    verification_doc = {
+        "verification_id": f"verify_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "user_email": current_user.email,
+        "method": "custom_task",
+        "status": "awaiting_task",
+        "custom_task": None,
+        "admin_notes": None,
+        "requested_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.verifications.insert_one(verification_doc)
+    
+    # Notify admins
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "task_request",
+        "title": "Custom Task Needed",
+        "message": f"{current_user.name} needs a custom verification task assigned (no ID available)",
+        "user_id": current_user.user_id,
+        "for_admins": True,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Task request submitted. Admin will assign a verification task.", "verification_id": verification_doc["verification_id"]}
+
+@api_router.get("/admin/verifications")
+async def get_pending_verifications(admin: User = Depends(require_admin)):
+    verifications = await db.verifications.find(
+        {"status": {"$in": ["pending", "awaiting_task"]}},
+        {"_id": 0}
+    ).sort("requested_at", -1).to_list(100)
+    return verifications
+
+@api_router.post("/admin/assign-task/{verification_id}")
+async def assign_verification_task(verification_id: str, request: Request, admin: User = Depends(require_admin)):
+    data = await request.json()
+    custom_task = data.get("custom_task")  # e.g., "Write the number 32 on a piece of paper and take a selfie holding it"
+    
+    await db.verifications.update_one(
+        {"verification_id": verification_id},
+        {"$set": {
+            "custom_task": custom_task,
+            "status": "task_assigned",
+            "assigned_by": admin.user_id,
+            "assigned_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Get user to notify
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if verification:
+        notification_doc = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "type": "task_assigned",
+            "title": "Verification Task Assigned",
+            "message": f"Your verification task: {custom_task}",
+            "user_id": verification["user_id"],
+            "for_admins": False,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Task assigned successfully"}
+
+@api_router.post("/admin/approve-verification/{verification_id}")
+async def approve_verification(verification_id: str, admin: User = Depends(require_admin)):
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    # Update verification status
+    await db.verifications.update_one(
+        {"verification_id": verification_id},
+        {"$set": {
+            "status": "approved",
+            "approved_by": admin.user_id,
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Update user as verified
     await db.users.update_one(
-        {"user_id": user_id},
+        {"user_id": verification["user_id"]},
         {"$set": {
             "is_verified": True,
             "verified_at": datetime.now(timezone.utc).isoformat(),
             "verified_by": admin.user_id
         }}
     )
+    
+    # Notify user
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_approved",
+        "title": "Verification Approved!",
+        "message": "Congratulations! Your identity has been verified. You now have a verified badge!",
+        "user_id": verification["user_id"],
+        "for_admins": False,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "User verified successfully"}
+
+@api_router.post("/admin/reject-verification/{verification_id}")
+async def reject_verification(verification_id: str, request: Request, admin: User = Depends(require_admin)):
+    data = await request.json()
+    reason = data.get("reason", "Verification rejected")
+    
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
     await db.verifications.update_one(
-        {"user_id": user_id, "status": "pending"},
-        {"$set": {"status": "approved", "approved_at": datetime.now(timezone.utc).isoformat()}}
+        {"verification_id": verification_id},
+        {"$set": {
+            "status": "rejected",
+            "rejection_reason": reason,
+            "rejected_by": admin.user_id,
+            "rejected_at": datetime.now(timezone.utc).isoformat()
+        }}
     )
-    return {"message": "User verified"}
+    
+    # Notify user
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_rejected",
+        "title": "Verification Not Approved",
+        "message": f"Your verification was not approved. Reason: {reason}. Please try again.",
+        "user_id": verification["user_id"],
+        "for_admins": False,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Verification rejected"}
+
+# ============ NOTIFICATIONS ============
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: User = Depends(get_current_user)):
+    notifications = await db.notifications.find(
+        {"user_id": current_user.user_id, "for_admins": False},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return notifications
+
+@api_router.get("/admin/notifications")
+async def get_admin_notifications(admin: User = Depends(require_admin)):
+    notifications = await db.notifications.find(
+        {"for_admins": True},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return notifications
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
+    await db.notifications.update_one(
+        {"notification_id": notification_id},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+# ============ LIKES / FAVORITES ============
+
+@api_router.post("/members/{user_id}/like")
+async def like_member(user_id: str, current_user: User = Depends(get_current_user)):
+    if user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot like yourself")
+    
+    existing = await db.likes.find_one({
+        "liker_id": current_user.user_id,
+        "liked_id": user_id
+    })
+    
+    if existing:
+        # Unlike
+        await db.likes.delete_one({"liker_id": current_user.user_id, "liked_id": user_id})
+        return {"message": "Unliked", "liked": False}
+    else:
+        # Like
+        like_doc = {
+            "like_id": f"like_{uuid.uuid4().hex[:12]}",
+            "liker_id": current_user.user_id,
+            "liked_id": user_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.likes.insert_one(like_doc)
+        
+        # Notify the liked user
+        notification_doc = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "type": "new_like",
+            "title": "Someone likes you!",
+            "message": f"{current_user.name} liked your profile",
+            "user_id": user_id,
+            "from_user_id": current_user.user_id,
+            "for_admins": False,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+        
+        return {"message": "Liked", "liked": True}
+
+@api_router.get("/members/{user_id}/is-liked")
+async def check_if_liked(user_id: str, current_user: User = Depends(get_current_user)):
+    existing = await db.likes.find_one({
+        "liker_id": current_user.user_id,
+        "liked_id": user_id
+    })
+    return {"liked": existing is not None}
+
+@api_router.get("/likes/received")
+async def get_received_likes(current_user: User = Depends(get_current_user)):
+    likes = await db.likes.find({"liked_id": current_user.user_id}, {"_id": 0}).to_list(100)
+    # Get liker details
+    liker_ids = [l["liker_id"] for l in likes]
+    likers = await db.users.find({"user_id": {"$in": liker_ids}}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"likes": likes, "likers": likers}
+
+@api_router.get("/likes/given")
+async def get_given_likes(current_user: User = Depends(get_current_user)):
+    likes = await db.likes.find({"liker_id": current_user.user_id}, {"_id": 0}).to_list(100)
+    liked_ids = [l["liked_id"] for l in likes]
+    liked_users = await db.users.find({"user_id": {"$in": liked_ids}}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"likes": likes, "liked_users": liked_users}
+
+# ============ PROFILE PHOTO UPLOAD ============
+
+@api_router.post("/users/upload-photo")
+async def upload_profile_photo(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    path = f"{APP_NAME}/profiles/{current_user.user_id}/photo.{ext}"
+    data = await file.read()
+    
+    try:
+        result = put_object(path, data, file.content_type or "image/jpeg")
+        
+        # Update user picture
+        await db.users.update_one(
+            {"user_id": current_user.user_id},
+            {"$set": {"picture": result["path"]}}
+        )
+        
+        return {"message": "Photo uploaded", "path": result["path"]}
+    except Exception as e:
+        logger.error(f"Photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Photo upload failed")
+
+@api_router.post("/verification/upload-photo")
+async def upload_verification_photo(
+    file: UploadFile = File(...),
+    photo_type: str = Query(...),  # "id", "selfie", or "task"
+    current_user: User = Depends(get_current_user)
+):
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    path = f"{APP_NAME}/verifications/{current_user.user_id}/{photo_type}_{uuid.uuid4().hex[:8]}.{ext}"
+    data = await file.read()
+    
+    try:
+        result = put_object(path, data, file.content_type or "image/jpeg")
+        return {"message": "Photo uploaded", "path": result["path"], "photo_type": photo_type}
+    except Exception as e:
+        logger.error(f"Verification photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Photo upload failed")
 
 app.include_router(api_router)
 
