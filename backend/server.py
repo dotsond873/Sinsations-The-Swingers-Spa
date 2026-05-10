@@ -427,13 +427,18 @@ async def get_members(current_user: User = Depends(get_current_user), skip: int 
     
     return members
 
-# ============ MEDIA ROUTES ============
+# ============ MEDIA ROUTES (Photos & Videos) ============
 
 @api_router.post("/media/upload")
-async def upload_media(file: UploadFile = File(...), is_public: bool = False, current_user: User = Depends(get_current_user)):
-    
+async def upload_media(
+    file: UploadFile = File(...), 
+    is_public: bool = False, 
+    media_type: str = Query(default="photo"),
+    current_user: User = Depends(get_current_user)
+):
     ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
-    path = f"{APP_NAME}/media/{current_user.user_id}/{uuid.uuid4()}.{ext}"
+    folder = "videos" if media_type == "video" else "photos"
+    path = f"{APP_NAME}/media/{current_user.user_id}/{folder}/{uuid.uuid4()}.{ext}"
     data = await file.read()
     result = put_object(path, data, file.content_type or "application/octet-stream")
     
@@ -444,13 +449,23 @@ async def upload_media(file: UploadFile = File(...), is_public: bool = False, cu
         "original_filename": file.filename,
         "content_type": file.content_type,
         "size": result["size"],
+        "media_type": media_type,
         "is_public": is_public,
         "is_deleted": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.media.insert_one(media_doc)
     
-    return {"media_id": media_doc["media_id"], "path": result["path"]}
+    return {"media_id": media_doc["media_id"], "path": result["path"], "media_type": media_type}
+
+@api_router.get("/media/user/{user_id}")
+async def get_user_media(user_id: str, media_type: Optional[str] = None, current_user: User = Depends(get_current_user)):
+    query = {"user_id": user_id, "is_deleted": False}
+    if media_type:
+        query["media_type"] = media_type
+    
+    media_list = await db.media.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return media_list
 
 @api_router.get("/media/{media_id}")
 async def get_media(media_id: str, authorization: str = Header(None), auth: str = Query(None)):

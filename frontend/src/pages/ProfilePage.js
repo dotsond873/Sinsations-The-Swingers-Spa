@@ -161,16 +161,32 @@ export default function ProfilePage({ user: propUser }) {
         </div>
 
         {/* Media Gallery */}
-        <h2 className="heading-font text-3xl font-bold text-[#F7F5F0] mb-6">Photos</h2>
+        <h2 className="heading-font text-3xl font-bold text-[#F7F5F0] mb-6">Photos & Videos</h2>
         {media.length === 0 ? (
           <div className="glass-effect p-12 rounded-2xl text-center">
-            <p className="text-[#A8A3B2]">No photos uploaded yet</p>
+            <p className="text-[#A8A3B2]">No media uploaded yet</p>
+            {isOwnProfile && (
+              <button
+                onClick={() => navigate('/my-media')}
+                className="mt-4 px-6 py-2 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all"
+              >
+                Upload Media
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid md:grid-cols-4 gap-6">
             {media.map(item => (
               <div key={item.media_id} className="relative glass-effect rounded-2xl overflow-hidden aspect-square">
-                <img src={`${API}/media/${item.media_id}`} alt="Content" className="w-full h-full object-cover" />
+                {item.media_type === 'video' || item.content_type?.startsWith('video') ? (
+                  <video 
+                    src={`${API}/media/${item.media_id}`} 
+                    controls 
+                    className="w-full h-full object-cover bg-black"
+                  />
+                ) : (
+                  <img src={`${API}/media/${item.media_id}`} alt="Content" className="w-full h-full object-cover" />
+                )}
               </div>
             ))}
           </div>

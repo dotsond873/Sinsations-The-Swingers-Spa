@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
-import { Users, Fire, Trophy, ShieldCheck, Gift, Chat, Pencil } from '@phosphor-icons/react';
+import { Users, Fire, Trophy, ShieldCheck, Gift, Chat, Pencil, Camera } from '@phosphor-icons/react';
 import Navigation from '../components/Navigation';
 
 export default function DashboardPage({ user: propUser }) {
@@ -132,7 +132,7 @@ export default function DashboardPage({ user: propUser }) {
         )}
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
           <QuickAction
             icon={<Users size={32} weight="duotone" />}
             title="Browse Members"
@@ -146,6 +146,13 @@ export default function DashboardPage({ user: propUser }) {
             description="Chat freely, exchange numbers"
             onClick={() => navigate('/messages')}
             testId="messages-card"
+          />
+          <QuickAction
+            icon={<Camera size={32} weight="duotone" />}
+            title="My Media"
+            description="Upload photos & videos"
+            onClick={() => navigate('/my-media')}
+            testId="media-card"
           />
           <QuickAction
             icon={<Fire size={32} weight="duotone" />}

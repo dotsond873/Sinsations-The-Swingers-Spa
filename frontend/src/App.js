@@ -20,6 +20,7 @@ import ContestPage from './pages/ContestPage';
 import AdminPage from './pages/AdminPage';
 import ReferralPage from './pages/ReferralPage';
 import LikesPage from './pages/LikesPage';
+import MediaUploadPage from './pages/MediaUploadPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -103,6 +104,7 @@ function AppRouter() {
       <Route path="/contest" element={<ProtectedRoute><ContestPage /></ProtectedRoute>} />
       <Route path="/referral" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
       <Route path="/likes" element={<ProtectedRoute><LikesPage /></ProtectedRoute>} />
+      <Route path="/my-media" element={<ProtectedRoute><MediaUploadPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
     </Routes>
   );
