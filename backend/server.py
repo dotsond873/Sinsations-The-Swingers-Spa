@@ -586,6 +586,46 @@ async def create_checkout(request: Request, current_user: User = Depends(get_cur
     
     return {"url": session.url, "session_id": session.session_id}
 
+# ============ DONATION ROUTES ============
+
+@api_router.post("/donation/checkout")
+async def create_donation_checkout(request: Request):
+    data = await request.json()
+    amount = data.get("amount")
+    origin_url = data.get("origin_url")
+    
+    if not amount or amount < 1:
+        raise HTTPException(status_code=400, detail="Invalid donation amount")
+    
+    success_url = f"{origin_url}/donation-success"
+    cancel_url = f"{origin_url}/support-us"
+    
+    webhook_url = f"{origin_url}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    checkout_request = CheckoutSessionRequest(
+        amount=float(amount),
+        currency="usd",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"type": "donation", "amount": str(amount)}
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    
+    # Record donation
+    donation_doc = {
+        "donation_id": f"donate_{uuid.uuid4().hex[:12]}",
+        "session_id": session.session_id,
+        "amount": float(amount),
+        "currency": "usd",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.donations.insert_one(donation_doc)
+    
+    return {"url": session.url, "session_id": session.session_id}
+
 @api_router.get("/payment/status/{session_id}")
 async def get_payment_status(session_id: str, current_user: User = Depends(get_current_user)):
     transaction = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})

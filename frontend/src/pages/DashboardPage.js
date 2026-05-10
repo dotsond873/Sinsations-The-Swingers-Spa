@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
-import { Users, Fire, Trophy, ShieldCheck, Gift, Chat, Pencil, Camera } from '@phosphor-icons/react';
+import { Users, Fire, Trophy, ShieldCheck, Gift, Chat, Pencil, Camera, Heart } from '@phosphor-icons/react';
 import Navigation from '../components/Navigation';
 
 export default function DashboardPage({ user: propUser }) {
@@ -168,6 +168,25 @@ export default function DashboardPage({ user: propUser }) {
             onClick={() => navigate('/referral')}
             testId="referral-card"
           />
+        </div>
+
+        {/* Support Banner */}
+        <div className="glass-effect p-6 rounded-2xl mb-8 border border-[#D4AF37]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Heart size={32} weight="fill" className="text-[#B22234]" />
+              <div>
+                <p className="text-[#F7F5F0] font-semibold">Love this site? Help keep it free!</p>
+                <p className="text-[#A8A3B2] text-sm">Your donations help cover server costs</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/support-us')}
+              className="px-6 py-2 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all"
+            >
+              Support Us
+            </button>
+          </div>
         </div>
 
         {/* Community Rules Reminder */}

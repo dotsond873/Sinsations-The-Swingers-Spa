@@ -21,6 +21,8 @@ import AdminPage from './pages/AdminPage';
 import ReferralPage from './pages/ReferralPage';
 import LikesPage from './pages/LikesPage';
 import MediaUploadPage from './pages/MediaUploadPage';
+import SupportUsPage from './pages/SupportUsPage';
+import DonationSuccessPage from './pages/DonationSuccessPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -90,6 +92,8 @@ function AppRouter() {
       <Route path="/guidelines" element={<GuidelinesPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/support-us" element={<SupportUsPage />} />
+      <Route path="/donation-success" element={<DonationSuccessPage />} />
       
       <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupPage /></ProtectedRoute>} />
       <Route path="/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />

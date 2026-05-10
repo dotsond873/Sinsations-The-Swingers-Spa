@@ -139,7 +139,13 @@ export default function LandingPage() {
       <footer className="py-12 px-8 bg-[#14121A] border-t border-[rgba(247,245,240,0.05)]">
         <div className="max-w-7xl mx-auto text-center text-[#757180]">
           <p className="mb-2">Bookup your Hookup - North Alabama & South Tennessee Sexy Swingers, LLC</p>
-          <p className="text-sm">For adults 18+ only. Be respectful.</p>
+          <p className="text-sm mb-4">For adults 18+ only. Be respectful.</p>
+          <button
+            onClick={() => navigate('/support-us')}
+            className="text-[#D4AF37] hover:text-[#F0C847] transition-colors text-sm"
+          >
+            ❤️ Support This Free Site
+          </button>
         </div>
       </footer>
     </div>
