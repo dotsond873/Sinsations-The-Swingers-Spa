@@ -253,11 +253,11 @@ async def register(user_data: UserRegistration):
         "bio": None,
         "preferences": {},
         "is_verified": False,
-        "is_premium": False,
-        "premium_plan": None,
+        "is_premium": True,
+        "premium_plan": "free",
         "residency_proof_url": None,
-        "approval_status": "pending",
-        "approved_by": None,
+        "approval_status": "approved",
+        "approved_by": "auto",
         "approved_at": None,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -331,12 +331,12 @@ async def google_session(request: Request):
             "location": None,
             "preferences": {},
             "is_verified": False,
-            "is_premium": False,
-            "premium_plan": None,
+            "is_premium": True,
+            "premium_plan": "free",
             "residency_proof_url": None,
-            "approval_status": "pending",
-            "approved_by": None,
-            "approved_at": None,
+            "approval_status": "approved",
+            "approved_by": "auto",
+            "approved_at": datetime.now(timezone.utc).isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(new_user)
@@ -419,10 +419,7 @@ async def update_profile(updates: Dict, current_user: User = Depends(get_current
 
 @api_router.get("/members")
 async def get_members(current_user: User = Depends(get_current_user), skip: int = 0, limit: int = 20, gender: Optional[str] = None):
-    if current_user.approval_status != "approved":
-        raise HTTPException(status_code=403, detail="Your account is pending approval")
-    
-    query = {"approval_status": "approved"}
+    query = {}
     if gender:
         query["gender"] = gender
     
@@ -434,8 +431,6 @@ async def get_members(current_user: User = Depends(get_current_user), skip: int 
 
 @api_router.post("/media/upload")
 async def upload_media(file: UploadFile = File(...), is_public: bool = False, current_user: User = Depends(get_current_user)):
-    if current_user.approval_status != "approved":
-        raise HTTPException(status_code=403, detail="Your account is pending approval")
     
     ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
     path = f"{APP_NAME}/media/{current_user.user_id}/{uuid.uuid4()}.{ext}"
@@ -505,7 +500,7 @@ async def delete_media(media_id: str, current_user: User = Depends(get_current_u
 
 # ============ MESSAGING ROUTES ============
 
-@api_router.post("/messages", dependencies=[Depends(require_premium)])
+@api_router.post("/messages")
 async def send_message(msg: MessageCreate, current_user: User = Depends(get_current_user)):
     message_doc = {
         "message_id": f"msg_{uuid.uuid4().hex[:12]}",
@@ -518,7 +513,7 @@ async def send_message(msg: MessageCreate, current_user: User = Depends(get_curr
     await db.messages.insert_one(message_doc)
     return {"message_id": message_doc["message_id"], "message": "Message sent"}
 
-@api_router.get("/messages", dependencies=[Depends(require_premium)])
+@api_router.get("/messages")
 async def get_messages(current_user: User = Depends(get_current_user)):
     messages = await db.messages.find(
         {"$or": [{"sender_id": current_user.user_id}, {"recipient_id": current_user.user_id}]},

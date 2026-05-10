@@ -3,9 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import axios from 'axios';
 import '@/index.css';
 import LandingPage from './pages/LandingPage';
-import PricingPage from './pages/PricingPage';
+import GuidelinesPage from './pages/GuidelinesPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ProfileSetupPage from './pages/ProfileSetupPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import MembersPage from './pages/MembersPage';
@@ -16,7 +17,6 @@ import PersonalsPage from './pages/PersonalsPage';
 import HotWifePage from './pages/HotWifePage';
 import ContestPage from './pages/ContestPage';
 import AdminPage from './pages/AdminPage';
-import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import ReferralPage from './pages/ReferralPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
@@ -84,11 +84,11 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/guidelines" element={<GuidelinesPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/payment-success" element={<PaymentSuccessPage />} />
       
+      <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/profile/:userId" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute><MembersPage /></ProtectedRoute>} />

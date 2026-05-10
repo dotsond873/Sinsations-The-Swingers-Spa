@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Users, Shield } from '@phosphor-icons/react';
+import { Heart, Users, Shield, Chat } from '@phosphor-icons/react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function LandingPage() {
               onClick={() => navigate('/register')}
               className="px-6 py-2 rounded-full bg-[#B22234] text-[#F7F5F0] hover:bg-[#D62839] transition-all duration-300"
             >
-              Join Now
+              Join Free
             </button>
           </div>
         </div>
@@ -45,41 +45,57 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0A0F]/80 to-[#0B0A0F]" />
         
         <div className="relative max-w-7xl mx-auto text-center">
+          {/* FREE Badge */}
+          <div className="inline-block px-6 py-2 rounded-full bg-[#4CAF50] text-white font-bold mb-6">
+            100% FREE TO JOIN & USE
+          </div>
+          
           <h2 className="heading-font text-5xl sm:text-6xl lg:text-7xl font-bold text-[#F7F5F0] mb-6 tracking-tight">
             North Alabama & South Tennessee
             <br />
             <span className="text-[#D4AF37]">Sexy Swingers</span>
           </h2>
-          <p className="text-lg md:text-xl text-[#A8A3B2] max-w-3xl mx-auto mb-12">
-            An exclusive, private community for couples and singles in North Alabama and Southern Tennessee.
-            Connect, explore, and indulge in a sophisticated lifestyle.
+          <p className="text-lg md:text-xl text-[#A8A3B2] max-w-3xl mx-auto mb-8">
+            A free, private community for couples and singles in North Alabama and Southern Tennessee.
+            Connect, message freely, exchange numbers - just be nice and respectful!
           </p>
-          <button
-            data-testid="hero-get-started-btn"
-            onClick={() => navigate('/register')}
-            className="px-12 py-4 rounded-full bg-[#B22234] text-[#F7F5F0] text-lg font-semibold hover:bg-[#D62839] transition-all duration-300 transform hover:-translate-y-1 premium-glow"
-          >
-            Get Started
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              data-testid="hero-get-started-btn"
+              onClick={() => navigate('/register')}
+              className="px-12 py-4 rounded-full bg-[#B22234] text-[#F7F5F0] text-lg font-semibold hover:bg-[#D62839] transition-all duration-300 transform hover:-translate-y-1"
+            >
+              Join Free Now
+            </button>
+            <button
+              onClick={() => navigate('/guidelines')}
+              className="px-12 py-4 rounded-full border-2 border-[#D4AF37] text-[#D4AF37] text-lg font-semibold hover:bg-[#D4AF37] hover:text-[#0B0A0F] transition-all duration-300"
+            >
+              Community Guidelines
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Features */}
       <section className="py-24 px-8 bg-[#14121A]">
         <div className="max-w-7xl mx-auto">
-          <h3 className="heading-font text-4xl md:text-5xl font-bold text-[#F7F5F0] text-center mb-16">
-            Premium Features
+          <h3 className="heading-font text-4xl md:text-5xl font-bold text-[#F7F5F0] text-center mb-4">
+            Everything is <span className="text-[#4CAF50]">FREE</span>
           </h3>
+          <p className="text-center text-[#A8A3B2] mb-16 max-w-2xl mx-auto">
+            No hidden fees, no premium tiers. Just connect with real people in your area.
+          </p>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <FeatureCard
+              icon={<Chat size={48} weight="duotone" />}
+              title="Free Messaging"
+              description="Unlimited messages, exchange numbers freely"
+            />
             <FeatureCard
               icon={<Users size={48} weight="duotone" />}
               title="Member Directory"
-              description="Browse verified members in your area"
-            />
-            <FeatureCard
-              icon={<Heart size={48} weight="duotone" />}
-              title="Premium Features"
-              description="Exclusive content and features for members"
+              description="Browse members in your area"
             />
             <FeatureCard
               icon={<Heart size={48} weight="duotone" />}
@@ -88,28 +104,33 @@ export default function LandingPage() {
             />
             <FeatureCard
               icon={<Shield size={48} weight="duotone" />}
-              title="Verified & Safe"
-              description="All members verified with residency proof"
+              title="Safe & Respectful"
+              description="Community focused on respect & consent"
             />
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* Community Values */}
       <section className="py-24 px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h3 className="heading-font text-4xl md:text-5xl font-bold text-[#F7F5F0] mb-6">
-            Ready to Join?
+            Our Simple Rules
           </h3>
-          <p className="text-lg text-[#A8A3B2] mb-12">
-            Start your journey today. Membership verification required.
-          </p>
+          <div className="glass-effect p-8 rounded-2xl mb-8">
+            <p className="text-2xl text-[#F7F5F0] mb-4 heading-font">
+              "Be nice. Be respectful. Have fun."
+            </p>
+            <p className="text-[#A8A3B2]">
+              That's it. We don't care what you do as long as everyone's consenting and having a good time.
+            </p>
+          </div>
           <button
-            data-testid="cta-view-pricing-btn"
-            onClick={() => navigate('/pricing')}
+            data-testid="cta-join-btn"
+            onClick={() => navigate('/register')}
             className="px-12 py-4 rounded-full bg-[#D4AF37] text-[#0B0A0F] text-lg font-semibold hover:bg-[#F0C847] transition-all duration-300 transform hover:-translate-y-1"
           >
-            View Pricing
+            Join the Community
           </button>
         </div>
       </section>
@@ -118,7 +139,7 @@ export default function LandingPage() {
       <footer className="py-12 px-8 bg-[#14121A] border-t border-[rgba(247,245,240,0.05)]">
         <div className="max-w-7xl mx-auto text-center text-[#757180]">
           <p className="mb-2">Bookup your Hookup - North Alabama & South Tennessee Sexy Swingers, LLC</p>
-          <p className="text-sm">For adults 18+ only. Residency verification required.</p>
+          <p className="text-sm">For adults 18+ only. Be respectful.</p>
         </div>
       </footer>
     </div>

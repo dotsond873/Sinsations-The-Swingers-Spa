@@ -36,8 +36,8 @@ export default function RegisterPage() {
       
       localStorage.setItem('token', response.data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-      toast.success('Registration successful! Please upload residency proof.');
-      navigate('/dashboard', { state: { needsResidencyProof: true, planId } });
+      toast.success('Welcome! Let\'s set up your profile.');
+      navigate('/profile-setup');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Registration failed');
     } finally {
@@ -47,7 +47,7 @@ export default function RegisterPage() {
 
   const handleGoogleLogin = () => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/dashboard';
+    const redirectUrl = window.location.origin + '/profile-setup';
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
