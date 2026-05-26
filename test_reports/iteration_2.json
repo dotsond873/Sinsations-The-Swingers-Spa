@@ -1,0 +1,75 @@
+{
+  "summary": "Tested new features: chatrooms, forums, personals, hotwife, and contest (Pretty Pussy of the Week). All 10 backend pytest cases passed (100%). All 5 new frontend pages render and display data correctly when authenticated. Identified one real auth-persistence bug: /api/auth/login does NOT set the session_token cookie, and App.js does NOT restore the Authorization header from localStorage on app boot — so a hard page refresh or opening the app in a new tab logs the user out even though localStorage still has a valid JWT. Also identified navigation gap: the top nav exposes only Dashboard/Members/Hot Wife/Contest; Chatrooms, Forums, and Personals are not reachable via nav links.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Session persistence on page refresh / direct URL navigation",
+        "issue": "POST /api/auth/login returns a JWT in the body and the LoginPage stores it in localStorage and sets axios.defaults.headers.common['Authorization']. However, /api/auth/login does NOT call response.set_cookie('session_token', ...) (only the Google /auth/google/session endpoint does). On a hard refresh or new tab, App.js calls GET /api/auth/me with withCredentials:true only (no cookie, no header restored from localStorage) → 401 → user redirected to /login. The fix is either (a) add response.set_cookie('session_token', token, httponly=True, samesite='none', secure=True) inside the login() handler in server.py, or (b) on app boot, read token from localStorage and set axios.defaults.headers.common.Authorization = `Bearer ${token}`.",
+        "affected_selectors": ["all protected routes after refresh"],
+        "priority": "HIGH"
+      },
+      {
+        "flow": "Top navigation discoverability",
+        "issue": "Navigation component shows only Dashboard, Members, Hot Wife, Contest. Chatrooms, Forums, Personals routes exist but have no nav links — users can only reach them via dashboard quick actions or direct URLs.",
+        "affected_selectors": ["nav"],
+        "priority": "MEDIUM"
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Chatrooms/Forums/Personals pages",
+        "issues": ["No data-testid attributes on ChatroomsPage.js, ForumsPage.js, PersonalsPage.js — only ContestPage and HotWifePage have them. Recommend adding data-testid to buttons, modals, and list items for these three pages."]
+      }
+    ]
+  },
+  "passed_tests": [
+    "Backend: /api/auth/me with primary test user",
+    "Backend: POST/GET /api/chatrooms (create + list)",
+    "Backend: POST /api/chatrooms/{id}/join",
+    "Backend: POST + GET /api/chatrooms/{id}/messages (two-user message exchange)",
+    "Backend: POST/GET/GET-detail /api/forums + POST /api/forums/{id}/posts",
+    "Backend: POST/GET/DELETE /api/personals with category filter and 403 non-owner delete",
+    "Backend: POST/GET/like-toggle/DELETE /api/hotwife/posts with 403 non-owner delete",
+    "Backend: Empty hotwife post rejected (400)",
+    "Backend: Full /api/contest flow — entry create from /api/media/upload, self-vote 400, cross-user vote 200, double-vote 400, /winner, /my-vote",
+    "Frontend: Login → dashboard",
+    "Frontend: /chatrooms renders rooms list (3 rooms visible incl. NA Couples, TEST_Room_*)",
+    "Frontend: /forums renders forum list with category tabs",
+    "Frontend: /personals renders personals with category filter",
+    "Frontend: /hotwife renders posts with delete icon for owner",
+    "Frontend: /contest renders entries with vote button and 'Your entry' badge",
+    "Backend startup log shows 'Storage initialized' on every boot"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX session persistence: add response.set_cookie('session_token', token, ...) in /api/auth/login OR restore axios Authorization header from localStorage on app boot in /app/frontend/src/App.js.",
+    "Add Chatrooms / Forums / Personals links to the top Navigation component so users can discover them.",
+    "Add data-testid attributes to interactive elements in ChatroomsPage.js, ForumsPage.js, PersonalsPage.js for future automated testing."
+  ],
+  "critical_code_review_comments": [
+    "ChatroomCreate has no Pydantic length validation — empty name/description accepted; consider min_length=1.",
+    "send_chatroom_message reuses ForumPostCreate model — confusing naming; consider a ChatroomMessageCreate model.",
+    "GET /api/chatrooms/{id}/messages returns messages sorted DESC and limited, which is fine for polling, but frontend should reverse or sort ASC for chronological display — verify ChatroomsPage handles this.",
+    "Vote endpoint uses $addToSet inside a separate find_one('voters') check — race-condition safe but not atomic; under high concurrency two simultaneous votes from same user could both pass the check. Acceptable for MVP.",
+    "/api/contest/winner only looks at the immediately previous ISO week; if no entries existed last week (as is the case now) the spotlight will always be null until the second week of operation — by design, but document it.",
+    "server.py is 1439 lines — past the 700-line guideline; consider splitting into routers per feature (chatrooms_router.py, contest_router.py, etc.)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100% (when authenticated header set)"},
+  "test_credentials": "test_1779827434@bookup.com / testpass123 (works as documented).",
+  "seed_data_creation": "Tests created: chatrooms (TEST_Room_*), forums (TEST_Forum_*), personals (TEST_*), hotwife posts (later deleted), one contest entry for primary user this week (2026-W21). One vote from a freshly registered user on the primary user's contest entry.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend new feature endpoints are all 100% green via /app/backend/tests/test_new_features.py. The main outstanding issue is session persistence on hard refresh — login endpoint does not set a session_token cookie and App.js does not rehydrate the Authorization header from localStorage. Once the main agent fixes this, retest by doing page.goto on /chatrooms etc. without manually injecting Authorization header — they should render. The primary test user already has a contest entry for week 2026-W21, so any further attempt to POST /api/contest/entries by this user will return 400 'You already submitted this week' — use a fresh user for that scenario.",
+  "rca_of_the_issue": "Root cause of session persistence bug: server.py login() at line ~280 returns {token, user_id} but never calls response.set_cookie. Frontend LoginPage stores the JWT in localStorage and sets axios.defaults.headers.common['Authorization'] — but axios.defaults is JS in-memory state, not persisted. On a fresh page load App.js immediately calls GET /api/auth/me with withCredentials:true only. There is no session_token cookie (because login never set one) and there is no Authorization header (because axios.defaults was reset on the new page load). The /api/auth/me endpoint therefore returns 401 and the user is bounced to /login. Reproduction: login, then refresh — you land on /login. Mitigation: set the cookie in /api/auth/login the same way /api/auth/google/session does it, OR add a top-level useEffect in App.js (before ProtectedRoute mounts) that does: const t = localStorage.getItem('token'); if (t) axios.defaults.headers.common.Authorization = `Bearer ${t}`;"
+}

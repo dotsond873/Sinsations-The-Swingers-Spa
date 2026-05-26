@@ -120,6 +120,14 @@ class PersonalCreate(BaseModel):
     content: str
     category: str
 
+class ContestEntryCreate(BaseModel):
+    media_id: str
+    caption: Optional[str] = ""
+
+class HotwifePostCreate(BaseModel):
+    content: str
+    media_id: Optional[str] = None
+
 # ============ STORAGE FUNCTIONS ============
 
 def init_storage():
@@ -1115,6 +1123,291 @@ async def upload_verification_photo(
     except Exception as e:
         logger.error(f"Verification photo upload failed: {e}")
         raise HTTPException(status_code=500, detail="Photo upload failed")
+
+# ============ CHATROOMS ROUTES ============
+
+@api_router.get("/chatrooms")
+async def list_chatrooms(current_user: User = Depends(get_current_user)):
+    rooms = await db.chatrooms.find({"is_deleted": {"$ne": True}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return rooms
+
+@api_router.post("/chatrooms")
+async def create_chatroom(payload: ChatroomCreate, current_user: User = Depends(get_current_user)):
+    room_doc = {
+        "room_id": f"room_{uuid.uuid4().hex[:12]}",
+        "name": payload.name.strip(),
+        "description": (payload.description or "").strip(),
+        "created_by": current_user.user_id,
+        "created_by_name": current_user.name,
+        "members": [current_user.user_id],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.chatrooms.insert_one(room_doc)
+    room_doc.pop("_id", None)
+    return room_doc
+
+@api_router.post("/chatrooms/{room_id}/join")
+async def join_chatroom(room_id: str, current_user: User = Depends(get_current_user)):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    await db.chatrooms.update_one(
+        {"room_id": room_id},
+        {"$addToSet": {"members": current_user.user_id}}
+    )
+    return {"message": "Joined", "room_id": room_id}
+
+@api_router.get("/chatrooms/{room_id}/messages")
+async def get_chatroom_messages(room_id: str, current_user: User = Depends(get_current_user), limit: int = 100):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    msgs = await db.chatroom_messages.find({"room_id": room_id}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return msgs
+
+@api_router.post("/chatrooms/{room_id}/messages")
+async def send_chatroom_message(room_id: str, payload: ForumPostCreate, current_user: User = Depends(get_current_user)):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    msg_doc = {
+        "message_id": f"cmsg_{uuid.uuid4().hex[:12]}",
+        "room_id": room_id,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.chatroom_messages.insert_one(msg_doc)
+    msg_doc.pop("_id", None)
+    return msg_doc
+
+# ============ FORUMS ROUTES ============
+
+@api_router.get("/forums")
+async def list_forums(current_user: User = Depends(get_current_user), category: Optional[str] = None):
+    query = {"is_deleted": {"$ne": True}}
+    if category:
+        query["category"] = category
+    forums = await db.forums.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return forums
+
+@api_router.post("/forums")
+async def create_forum(payload: ForumCreate, current_user: User = Depends(get_current_user)):
+    forum_doc = {
+        "forum_id": f"forum_{uuid.uuid4().hex[:12]}",
+        "title": payload.title.strip(),
+        "description": (payload.description or "").strip(),
+        "category": payload.category,
+        "created_by": current_user.user_id,
+        "created_by_name": current_user.name,
+        "post_count": 0,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.forums.insert_one(forum_doc)
+    forum_doc.pop("_id", None)
+    return forum_doc
+
+@api_router.get("/forums/{forum_id}")
+async def get_forum(forum_id: str, current_user: User = Depends(get_current_user)):
+    forum = await db.forums.find_one({"forum_id": forum_id}, {"_id": 0})
+    if not forum:
+        raise HTTPException(status_code=404, detail="Forum not found")
+    posts = await db.forum_posts.find({"forum_id": forum_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    return {"forum": forum, "posts": posts}
+
+@api_router.post("/forums/{forum_id}/posts")
+async def create_forum_post(forum_id: str, payload: ForumPostCreate, current_user: User = Depends(get_current_user)):
+    forum = await db.forums.find_one({"forum_id": forum_id})
+    if not forum:
+        raise HTTPException(status_code=404, detail="Forum not found")
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Post cannot be empty")
+    post_doc = {
+        "post_id": f"post_{uuid.uuid4().hex[:12]}",
+        "forum_id": forum_id,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.forum_posts.insert_one(post_doc)
+    await db.forums.update_one({"forum_id": forum_id}, {"$inc": {"post_count": 1}})
+    post_doc.pop("_id", None)
+    return post_doc
+
+# ============ PERSONALS ROUTES ============
+
+@api_router.get("/personals")
+async def list_personals(current_user: User = Depends(get_current_user), category: Optional[str] = None):
+    query = {"is_deleted": {"$ne": True}}
+    if category:
+        query["category"] = category
+    personals = await db.personals.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return personals
+
+@api_router.post("/personals")
+async def create_personal(payload: PersonalCreate, current_user: User = Depends(get_current_user)):
+    personal_doc = {
+        "personal_id": f"prs_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "title": payload.title.strip(),
+        "content": payload.content.strip(),
+        "category": payload.category,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.personals.insert_one(personal_doc)
+    personal_doc.pop("_id", None)
+    return personal_doc
+
+@api_router.delete("/personals/{personal_id}")
+async def delete_personal(personal_id: str, current_user: User = Depends(get_current_user)):
+    personal = await db.personals.find_one({"personal_id": personal_id})
+    if not personal:
+        raise HTTPException(status_code=404, detail="Personal not found")
+    if personal["user_id"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    await db.personals.update_one({"personal_id": personal_id}, {"$set": {"is_deleted": True}})
+    return {"message": "Deleted"}
+
+# ============ CONTEST ROUTES (Pretty Pussy of the Week) ============
+
+def _current_week_key() -> str:
+    now = datetime.now(timezone.utc)
+    iso = now.isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+@api_router.get("/contest/entries")
+async def list_contest_entries(current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    entries = await db.contest_entries.find(
+        {"week": week, "is_deleted": {"$ne": True}}, {"_id": 0}
+    ).sort("votes", -1).to_list(200)
+    return entries
+
+@api_router.post("/contest/entries")
+async def create_contest_entry(payload: ContestEntryCreate, current_user: User = Depends(get_current_user)):
+    media = await db.media.find_one({"media_id": payload.media_id, "user_id": current_user.user_id, "is_deleted": False})
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found in your library")
+    week = _current_week_key()
+    existing = await db.contest_entries.find_one({"week": week, "user_id": current_user.user_id, "is_deleted": {"$ne": True}})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already submitted this week")
+    entry_doc = {
+        "entry_id": f"entry_{uuid.uuid4().hex[:12]}",
+        "week": week,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "media_id": payload.media_id,
+        "caption": (payload.caption or "").strip(),
+        "votes": 0,
+        "voters": [],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.contest_entries.insert_one(entry_doc)
+    entry_doc.pop("_id", None)
+    return entry_doc
+
+@api_router.post("/contest/entries/{entry_id}/vote")
+async def vote_contest_entry(entry_id: str, current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    entry = await db.contest_entries.find_one({"entry_id": entry_id, "week": week})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if entry["user_id"] == current_user.user_id:
+        raise HTTPException(status_code=400, detail="You cannot vote for your own entry")
+    # Check if user already voted this week
+    already = await db.contest_entries.find_one({"week": week, "voters": current_user.user_id})
+    if already:
+        raise HTTPException(status_code=400, detail="You have already voted this week")
+    await db.contest_entries.update_one(
+        {"entry_id": entry_id},
+        {"$inc": {"votes": 1}, "$addToSet": {"voters": current_user.user_id}}
+    )
+    return {"message": "Vote recorded"}
+
+@api_router.get("/contest/winner")
+async def get_contest_winner(current_user: User = Depends(get_current_user)):
+    # Last completed week winner
+    now = datetime.now(timezone.utc)
+    last_week_dt = now - timedelta(days=7)
+    iso = last_week_dt.isocalendar()
+    last_week = f"{iso[0]}-W{iso[1]:02d}"
+    winner = await db.contest_entries.find_one(
+        {"week": last_week, "is_deleted": {"$ne": True}},
+        {"_id": 0},
+        sort=[("votes", -1)]
+    )
+    if not winner:
+        return {"winner": None, "week": last_week}
+    return {"winner": winner, "week": last_week}
+
+@api_router.get("/contest/my-vote")
+async def get_my_vote(current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    voted = await db.contest_entries.find_one({"week": week, "voters": current_user.user_id}, {"_id": 0})
+    return {"voted_entry_id": voted["entry_id"] if voted else None}
+
+# ============ HOT WIFE ROUTES ============
+
+@api_router.get("/hotwife/posts")
+async def list_hotwife_posts(current_user: User = Depends(get_current_user)):
+    posts = await db.hotwife_posts.find({"is_deleted": {"$ne": True}}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return posts
+
+@api_router.post("/hotwife/posts")
+async def create_hotwife_post(payload: HotwifePostCreate, current_user: User = Depends(get_current_user)):
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Post cannot be empty")
+    post_doc = {
+        "post_id": f"hw_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "media_id": payload.media_id,
+        "likes": 0,
+        "liked_by": [],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.hotwife_posts.insert_one(post_doc)
+    post_doc.pop("_id", None)
+    return post_doc
+
+@api_router.post("/hotwife/posts/{post_id}/like")
+async def like_hotwife_post(post_id: str, current_user: User = Depends(get_current_user)):
+    post = await db.hotwife_posts.find_one({"post_id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if current_user.user_id in post.get("liked_by", []):
+        await db.hotwife_posts.update_one(
+            {"post_id": post_id},
+            {"$inc": {"likes": -1}, "$pull": {"liked_by": current_user.user_id}}
+        )
+        return {"liked": False}
+    await db.hotwife_posts.update_one(
+        {"post_id": post_id},
+        {"$inc": {"likes": 1}, "$addToSet": {"liked_by": current_user.user_id}}
+    )
+    return {"liked": True}
+
+@api_router.delete("/hotwife/posts/{post_id}")
+async def delete_hotwife_post(post_id: str, current_user: User = Depends(get_current_user)):
+    post = await db.hotwife_posts.find_one({"post_id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post["user_id"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    await db.hotwife_posts.update_one({"post_id": post_id}, {"$set": {"is_deleted": True}})
+    return {"message": "Deleted"}
 
 app.include_router(api_router)
 

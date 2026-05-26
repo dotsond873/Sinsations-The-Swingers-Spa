@@ -103,6 +103,7 @@ function AppRouter() {
       <Route path="/messages" element={<ProtectedRoute><MessagingPage /></ProtectedRoute>} />
       <Route path="/chatrooms" element={<ProtectedRoute><ChatroomsPage /></ProtectedRoute>} />
       <Route path="/forums" element={<ProtectedRoute><ForumsPage /></ProtectedRoute>} />
+      <Route path="/forums/:forumId" element={<ProtectedRoute><ForumsPage /></ProtectedRoute>} />
       <Route path="/personals" element={<ProtectedRoute><PersonalsPage /></ProtectedRoute>} />
       <Route path="/hotwife" element={<ProtectedRoute><HotWifePage /></ProtectedRoute>} />
       <Route path="/contest" element={<ProtectedRoute><ContestPage /></ProtectedRoute>} />
