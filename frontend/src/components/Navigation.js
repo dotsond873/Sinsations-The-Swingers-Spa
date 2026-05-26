@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SignOut, House, Users, Fire, Trophy, ShieldCheck } from '@phosphor-icons/react';
+import { SignOut, House, Users, Fire, Trophy, ShieldCheck, ChatCircle, Article, Newspaper, ChatTeardropDots } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
@@ -21,22 +21,27 @@ export default function Navigation({ user }) {
 
   return (
     <nav className="glass-effect sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-8 py-4">
-        <div className="flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
           <h1
             onClick={() => navigate('/dashboard')}
-            className="heading-font text-2xl font-bold text-[#F7F5F0] cursor-pointer"
+            className="heading-font text-xl lg:text-2xl font-bold text-[#F7F5F0] cursor-pointer whitespace-nowrap"
+            data-testid="nav-brand"
           >
             Bookup your Hookup
           </h1>
 
-          <div className="hidden md:flex items-center gap-6">
-            <NavLink icon={<House size={20} />} label="Dashboard" onClick={() => navigate('/dashboard')} />
-            <NavLink icon={<Users size={20} />} label="Members" onClick={() => navigate('/members')} />
-            <NavLink icon={<Fire size={20} />} label="Hot Wife" onClick={() => navigate('/hotwife')} />
-            <NavLink icon={<Trophy size={20} />} label="Contest" onClick={() => navigate('/contest')} />
+          <div className="hidden lg:flex items-center gap-4 xl:gap-5 flex-wrap">
+            <NavLink testid="nav-dashboard" icon={<House size={18} />} label="Dashboard" onClick={() => navigate('/dashboard')} />
+            <NavLink testid="nav-members" icon={<Users size={18} />} label="Members" onClick={() => navigate('/members')} />
+            <NavLink testid="nav-messages" icon={<ChatTeardropDots size={18} />} label="Messages" onClick={() => navigate('/messages')} />
+            <NavLink testid="nav-chatrooms" icon={<ChatCircle size={18} />} label="Chatrooms" onClick={() => navigate('/chatrooms')} />
+            <NavLink testid="nav-forums" icon={<Article size={18} />} label="Forums" onClick={() => navigate('/forums')} />
+            <NavLink testid="nav-personals" icon={<Newspaper size={18} />} label="Personals" onClick={() => navigate('/personals')} />
+            <NavLink testid="nav-hotwife" icon={<Fire size={18} />} label="Hot Wife" onClick={() => navigate('/hotwife')} />
+            <NavLink testid="nav-contest" icon={<Trophy size={18} />} label="Contest" onClick={() => navigate('/contest')} />
             {user?.email && user.email.includes('admin') && (
-              <NavLink icon={<ShieldCheck size={20} />} label="Admin" onClick={() => navigate('/admin')} />
+              <NavLink testid="nav-admin" icon={<ShieldCheck size={18} />} label="Admin" onClick={() => navigate('/admin')} />
             )}
           </div>
 
@@ -54,11 +59,12 @@ export default function Navigation({ user }) {
   );
 }
 
-function NavLink({ icon, label, onClick, premium }) {
+function NavLink({ icon, label, onClick, premium, testid }) {
   return (
     <button
+      data-testid={testid}
       onClick={onClick}
-      className="flex items-center gap-2 text-[#F7F5F0] hover:text-[#D4AF37] transition-colors relative"
+      className="flex items-center gap-1.5 text-[#F7F5F0] hover:text-[#D4AF37] transition-colors relative whitespace-nowrap"
     >
       {icon}
       <span className="text-sm">{label}</span>

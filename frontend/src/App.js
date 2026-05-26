@@ -33,6 +33,12 @@ export { API, BACKEND_URL };
 
 axios.defaults.withCredentials = true;
 
+// Restore JWT auth header from localStorage on app boot
+const _storedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+if (_storedToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${_storedToken}`;
+}
+
 function ProtectedRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [user, setUser] = useState(null);

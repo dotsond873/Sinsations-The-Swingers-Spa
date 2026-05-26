@@ -288,7 +288,17 @@ async def login(credentials: UserLogin):
     
     token = create_jwt_token(user_doc["user_id"], user_doc["email"])
     
-    return {"token": token, "user_id": user_doc["user_id"]}
+    response = JSONResponse(content={"token": token, "user_id": user_doc["user_id"]})
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7*24*60*60
+    )
+    return response
 
 @api_router.post("/auth/google/session")
 async def google_session(request: Request):

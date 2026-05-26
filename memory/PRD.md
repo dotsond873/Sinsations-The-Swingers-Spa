@@ -1,83 +1,84 @@
 # Bookup your Hookup - PRD
 
 ## Original Problem Statement
-Build a couples swinger website for North Alabama and Southern Tennessee. FREE to join with unlimited free messaging. Open registration. Profile preferences (gender, age, race, orientation, looking for). Community guidelines. Anti-catfishing verification system with ID+Selfie or custom admin tasks.
+A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Open registration, free messaging, chatrooms, forums, member search, personals, hot wife area, "Pretty Pussy of the Week" contest, anti-catfishing verification (ID+Selfie or custom admin gesture), media uploads, and a Stripe-powered "Support Us" donation page with founder mission statement.
 
 ## Admin Team
-- Admin David D.
-- Admin Beth D.
-- Admin Heather H
-- Admin Wendell S
+- Admin David D., Admin Beth D., Admin Heather H., Admin Wendell S.
 
 ## Core Requirements
-- 100% FREE platform - no paid memberships
+- 100% FREE — no premium tiers, no paywalls
 - Open registration (auto-approved)
 - Unlimited free messaging
-- Member verification to prevent catfishing
-- Community guidelines emphasizing respect and consent
+- Verification system (ID+Selfie or admin-assigned task)
+- Community guidelines emphasising respect and consent
+- Stripe donations only (no payment for features)
 
 ## What's Been Implemented
 
-### Phase 1 (Initial Build)
-- Landing page with FREE messaging emphasis
-- Registration with profile preferences
-- JWT + Google OAuth authentication
-- Member directory with filters
-- Profile pages with like/message buttons
-- Messaging system (unlimited, free)
-- Hot Wife section
-- Pretty Pussy of the Week contest
+### Phase 1 — Foundations
+- Landing page with FREE emphasis
+- Registration with profile preferences (gender, age, race, orientation, looking-for)
+- JWT auth + Emergent Google OAuth
+- Member directory with filters, Profile pages
+- Unlimited messaging (free)
 - Referral program
 - Admin panel
+- Community guidelines
 
-### Phase 2 (Current - Verification System)
-- ID + Selfie verification method
-- Custom task verification (for users without ID)
-- Admin can assign custom tasks (e.g., "Write 32 on paper")
+### Phase 2 — Trust & Safety
+- ID + Selfie verification
+- Custom admin-task verification (e.g. "write 32 on paper")
 - Admin notifications for verification requests
-- Verified badges on profiles
-- Likes/Favorites system with notifications
+- Verified badge on profiles
+- Likes/Favorites system
 
-## User Personas
-1. Couples looking for other couples/singles
-2. Single males seeking connections
-3. Single females seeking connections
-4. Hotwife lifestyle enthusiasts
+### Phase 3 — Media + Donations
+- Photo & Video upload (Emergent Object Storage)
+- "Support Us" Stripe donation page + founder mission statement
+- Profile photo uploads
 
-## Features Implemented
-- [x] Landing page (FREE emphasis)
-- [x] Community Guidelines page
-- [x] Registration with preferences
-- [x] Profile setup (gender, age, race, orientation, looking for)
-- [x] Login (email + Google OAuth)
-- [x] Dashboard
-- [x] Member directory
-- [x] Profile pages with likes
-- [x] Messaging (FREE)
-- [x] Verification system (ID+Selfie / Custom Task)
-- [x] Admin panel (verifications, notifications)
-- [x] Referral program
-- [x] Likes/Favorites
+### Phase 4 — Community (May 2026)
+- **Chatrooms** with 3-second polling chat, create/join rooms, messages
+- **Forums** with 6 categories, create topics, threaded posts, post counts
+- **Personals** with 6 categories (couple seeking, male/female seeking, group, hotwife, travel), respond/message CTA
+- **Hot Wife Section** — dedicated feed with text posts + optional photo attachment, like/unlike, owner delete
+- **Pretty Pussy of the Week Contest** — weekly entries from user media library, one entry & one vote per ISO week, last-week winner spotlight with crown
+- Top Nav now exposes Chatrooms, Forums, Personals, Messages, Hot Wife, Contest
+- Session persistence fixed: `/auth/login` now sets `session_token` HttpOnly cookie; App.js also rehydrates Authorization header from localStorage on boot
 
-## Backlog (P0/P1/P2)
+## Backend Endpoints (new this phase)
+- `GET/POST /api/chatrooms`, `POST /api/chatrooms/{id}/join`, `GET/POST /api/chatrooms/{id}/messages`
+- `GET/POST /api/forums`, `GET /api/forums/{id}`, `POST /api/forums/{id}/posts`
+- `GET/POST/DELETE /api/personals[/{id}]` (?category= filter)
+- `GET/POST /api/contest/entries`, `POST /api/contest/entries/{id}/vote`, `GET /api/contest/winner`, `GET /api/contest/my-vote`
+- `GET/POST/DELETE /api/hotwife/posts[/{id}]`, `POST /api/hotwife/posts/{id}/like`
 
-### P0 - Critical
-- [ ] Profile photo upload (needs valid storage key)
-- [ ] Real-time chat for chatrooms
+## Data Models (Mongo collections)
+- users, user_sessions, messages, media, verifications, notifications, donations, referrals, likes
+- chatrooms, chatroom_messages
+- forums, forum_posts
+- personals
+- contest_entries (week key = ISO `YYYY-Www`)
+- hotwife_posts
 
-### P1 - Important
-- [ ] Forum discussions
-- [ ] Personals posting
-- [ ] Contest voting/submissions
-- [ ] Email notifications
+## Backlog
 
-### P2 - Nice to Have
-- [ ] Advanced search filters
+### P0
+- [ ] Real-time chat upgrade (WebSocket) — currently polling
+- [ ] Profile photo enforcement before contest entry
+
+### P1
+- [ ] Email notifications (new message, verification approved, contest winner)
+- [ ] Admin: pin/mod tools for forums + flagged personals
 - [ ] Block/report users
-- [ ] Mobile app optimization
 
-## Next Tasks
-1. Get valid Emergent LLM key for object storage
-2. Test full registration → profile setup → verification flow
-3. Implement real-time chatrooms
-4. Build forum discussion system
+### P2
+- [ ] Refactor monolithic `server.py` (>1400 lines) into per-feature routers under `/app/backend/routes/`
+- [ ] Mobile nav hamburger
+- [ ] Advanced search filters (age range, location radius)
+
+## Testing
+- iteration_2.json: 100% backend, 100% frontend after fixing session cookie + nav links
+- Pytest suite at `/app/backend/tests/test_new_features.py`
+- Test creds in `/app/memory/test_credentials.md`
