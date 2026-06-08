@@ -74,6 +74,11 @@ A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Op
 - Login page "Forgot Password?" link now wired to a new `/forgot-password` flow (email → security question → answer + new password → done)
 - Profile Setup page now has a Security Question section with 7 preset questions + custom option
 
+### Phase 7 — Engagement (June 2026)
+- Dashboard now shows a **"Members near you"** widget — auto-shows up to 6 members matching your area code (falls back to state, then global)
+- Dashboard now shows a **Security Question reminder banner** for users who haven't set one yet (drives forgot-password coverage, cuts support load)
+- `/api/auth/me` now returns the `security_question` field (without the answer hash) so the frontend can detect setup state
+
 ## Backlog
 
 ### P0

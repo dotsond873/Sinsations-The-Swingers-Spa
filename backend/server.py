@@ -64,6 +64,7 @@ class User(BaseModel):
     approval_status: str = "pending"  # pending, approved, rejected
     approved_by: Optional[str] = None
     approved_at: Optional[str] = None
+    security_question: Optional[str] = None
     created_at: str
 
 class UserRegistration(BaseModel):
