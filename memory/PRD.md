@@ -47,6 +47,11 @@ A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Op
 - Top Nav now exposes Chatrooms, Forums, Personals, Messages, Hot Wife, Contest
 - Session persistence fixed: `/auth/login` now sets `session_token` HttpOnly cookie; App.js also rehydrates Authorization header from localStorage on boot
 
+### Phase 5 — Member Search (June 2026)
+- Profile Setup now collects **city, state, area code** (kept legacy free-text `location` for back-compat)
+- `GET /api/members` supports **q** (full-text across name/city/state/location/area_code), **city**, **state** (2-letter), **area_code**, **gender**, **orientation**, **age_range** with regex+case-insensitive matching
+- Members page rebuilt with debounced (300ms) search bar, collapsible advanced filter panel, active-filter chips, live result count, and richer cards (city, state, area code on each card)
+
 ## Backend Endpoints (new this phase)
 - `GET/POST /api/chatrooms`, `POST /api/chatrooms/{id}/join`, `GET/POST /api/chatrooms/{id}/messages`
 - `GET/POST /api/forums`, `GET /api/forums/{id}`, `POST /api/forums/{id}/posts`

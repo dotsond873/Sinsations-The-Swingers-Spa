@@ -53,6 +53,9 @@ class User(BaseModel):
     age: Optional[int] = None
     gender: Optional[str] = None
     location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    area_code: Optional[str] = None
     preferences: Optional[Dict] = None
     is_verified: bool = False
     is_premium: bool = False
@@ -425,8 +428,15 @@ async def get_user_profile(user_id: str, current_user: User = Depends(get_curren
 
 @api_router.put("/users/profile")
 async def update_profile(updates: Dict, current_user: User = Depends(get_current_user)):
-    allowed_fields = ["name", "bio", "age", "gender", "location", "preferences"]
+    allowed_fields = ["name", "bio", "age", "gender", "location", "city", "state", "area_code", "preferences"]
     update_data = {k: v for k, v in updates.items() if k in allowed_fields}
+    # Normalise location fields
+    if "city" in update_data and update_data["city"]:
+        update_data["city"] = update_data["city"].strip()
+    if "state" in update_data and update_data["state"]:
+        update_data["state"] = update_data["state"].strip().upper()
+    if "area_code" in update_data and update_data["area_code"]:
+        update_data["area_code"] = "".join(c for c in str(update_data["area_code"]) if c.isdigit())[:5]
     
     await db.users.update_one(
         {"user_id": current_user.user_id},
@@ -436,13 +446,57 @@ async def update_profile(updates: Dict, current_user: User = Depends(get_current
     return {"message": "Profile updated"}
 
 @api_router.get("/members")
-async def get_members(current_user: User = Depends(get_current_user), skip: int = 0, limit: int = 20, gender: Optional[str] = None):
-    query = {}
+async def get_members(
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 50,
+    gender: Optional[str] = None,
+    q: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    area_code: Optional[str] = None,
+    orientation: Optional[str] = None,
+    age_range: Optional[str] = None,
+):
+    import re
+    query: Dict[str, Any] = {}
     if gender:
         query["gender"] = gender
-    
-    members = await db.users.find(query, {"_id": 0, "password_hash": 0}).skip(skip).limit(limit).to_list(limit)
-    
+    if city:
+        query["$or"] = [
+            {"city": {"$regex": re.escape(city), "$options": "i"}},
+            {"location": {"$regex": re.escape(city), "$options": "i"}},
+        ]
+    if state:
+        query["state"] = state.strip().upper()
+    if area_code:
+        digits = "".join(c for c in str(area_code) if c.isdigit())
+        if digits:
+            query["area_code"] = digits
+    if orientation:
+        query["preferences.orientation"] = orientation
+    if age_range:
+        query["preferences.age_range"] = age_range
+    if q:
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        text_or = [
+            {"name": rx},
+            {"city": rx},
+            {"state": rx},
+            {"location": rx},
+            {"area_code": rx},
+        ]
+        # combine with existing $or if needed
+        if "$or" in query:
+            query = {"$and": [query, {"$or": text_or}]}
+        else:
+            query["$or"] = text_or
+
+    members = await db.users.find(
+        query,
+        {"_id": 0, "password_hash": 0, "residency_proof_url": 0}
+    ).skip(skip).limit(limit).to_list(limit)
+
     return members
 
 # ============ MEDIA ROUTES (Photos & Videos) ============

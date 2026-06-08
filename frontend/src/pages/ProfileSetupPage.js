@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
-import { User, Heart, Target } from '@phosphor-icons/react';
+import { User, Target } from '@phosphor-icons/react';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -71,30 +71,36 @@ export default function ProfileSetupPage({ user: propUser }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(propUser);
   const [loading, setLoading] = useState(false);
-  const [preferences, setPreferences] = useState({
-    gender: '',
-    age_range: '',
-    race: '',
-    orientation: '',
-    looking_for: [],
-    bio: '',
-  });
+  const [preferences, setPreferences] = useState(() => ({
+    gender: propUser?.gender || '',
+    age_range: propUser?.preferences?.age_range || '',
+    race: propUser?.preferences?.race || '',
+    orientation: propUser?.preferences?.orientation || '',
+    looking_for: propUser?.preferences?.looking_for || [],
+    bio: propUser?.bio || '',
+    city: propUser?.city || '',
+    state: propUser?.state || '',
+    area_code: propUser?.area_code || '',
+  }));
 
+  const initRef = useRef(false);
   useEffect(() => {
-    if (!user) {
-      axios.get(`${API}/auth/me`, { withCredentials: true })
-        .then(res => {
-          setUser(res.data);
-          // Pre-fill if user already has preferences
-          if (res.data.preferences) {
-            setPreferences(prev => ({ ...prev, ...res.data.preferences }));
-          }
-          if (res.data.gender) {
-            setPreferences(prev => ({ ...prev, gender: res.data.gender }));
-          }
-        })
-        .catch(() => navigate('/login'));
-    }
+    if (initRef.current || user) return;
+    axios.get(`${API}/auth/me`, { withCredentials: true })
+      .then(res => {
+        initRef.current = true;
+        setUser(res.data);
+        setPreferences(prev => ({
+          ...prev,
+          ...(res.data.preferences || {}),
+          gender: res.data.gender || prev.gender,
+          bio: res.data.bio || prev.bio,
+          city: res.data.city || prev.city,
+          state: res.data.state || prev.state,
+          area_code: res.data.area_code || prev.area_code,
+        }));
+      })
+      .catch(() => navigate('/login'));
   }, [user, navigate]);
 
   const handleLookingForChange = (value) => {
@@ -116,6 +122,9 @@ export default function ProfileSetupPage({ user: propUser }) {
       await axios.put(`${API}/users/profile`, {
         gender: preferences.gender,
         bio: preferences.bio,
+        city: preferences.city,
+        state: preferences.state,
+        area_code: preferences.area_code,
         preferences: {
           age_range: preferences.age_range,
           race: preferences.race,
@@ -251,11 +260,66 @@ export default function ProfileSetupPage({ user: propUser }) {
             </div>
           </div>
 
+          {/* Location Section */}
+          <div className="glass-effect p-8 rounded-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <Target size={28} weight="fill" className="text-[#D4AF37]" />
+              <h2 className="heading-font text-2xl font-bold text-[#F7F5F0]">Location</h2>
+            </div>
+            <p className="text-[#A8A3B2] mb-4 text-sm">Help nearby members find you. All fields optional.</p>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-[#F7F5F0] text-sm font-medium mb-2">City</label>
+                <input
+                  data-testid="city-input"
+                  type="text"
+                  value={preferences.city}
+                  onChange={(e) => setPreferences({ ...preferences, city: e.target.value })}
+                  placeholder="Huntsville"
+                  className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234]"
+                />
+              </div>
+              <div>
+                <label className="block text-[#F7F5F0] text-sm font-medium mb-2">State</label>
+                <select
+                  data-testid="state-select"
+                  value={preferences.state}
+                  onChange={(e) => setPreferences({ ...preferences, state: e.target.value })}
+                  className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234]"
+                >
+                  <option value="">Select…</option>
+                  <option value="AL">Alabama</option>
+                  <option value="TN">Tennessee</option>
+                  <option value="GA">Georgia</option>
+                  <option value="MS">Mississippi</option>
+                  <option value="KY">Kentucky</option>
+                  <option value="FL">Florida</option>
+                  <option value="NC">North Carolina</option>
+                  <option value="SC">South Carolina</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#F7F5F0] text-sm font-medium mb-2">Area Code</label>
+                <input
+                  data-testid="area-code-input"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={preferences.area_code}
+                  onChange={(e) => setPreferences({ ...preferences, area_code: e.target.value.replace(/\D/g, '').slice(0,5) })}
+                  placeholder="256"
+                  className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234]"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Looking For Section */}
           <div className="glass-effect p-8 rounded-2xl">
             <div className="flex items-center gap-3 mb-6">
               <Target size={28} weight="fill" className="text-[#D4AF37]" />
-              <h2 className="heading-font text-2xl font-bold text-[#F7F5F0]">What I'm Looking For</h2>
+              <h2 className="heading-font text-2xl font-bold text-[#F7F5F0]">What I&apos;m Looking For</h2>
             </div>
             <p className="text-[#A8A3B2] mb-4 text-sm">Select all that apply</p>
 

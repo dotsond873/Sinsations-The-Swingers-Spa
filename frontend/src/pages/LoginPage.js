@@ -86,7 +86,15 @@ export default function LoginPage() {
                   placeholder="••••••••"
                 />
               </div>
-            </div>
+            </div><div className="text-right mb-4">
+                <button
+                    type="button"
+                        onClick={() => navigate('/forgot-password')}
+                            className="text-sm text-blue-500 hover:text-blue-700"
+                              >
+                                  Forgot Password?
+                                    </button>
+                                    </div>
 
             <button
               data-testid="login-submit-btn"
