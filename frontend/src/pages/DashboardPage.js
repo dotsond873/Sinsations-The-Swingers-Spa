@@ -76,7 +76,7 @@ export default function DashboardPage({ user: propUser }) {
         {/* Complete Profile Banner */}
         {isProfileIncomplete && (
           <div data-testid="complete-profile-banner" className="mb-8 glass-effect p-6 rounded-2xl border-2 border-[#D4AF37]">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h3 className="heading-font text-2xl font-bold text-[#F7F5F0] mb-2">Complete Your Profile</h3>
                 <p className="text-[#A8A3B2]">
@@ -86,7 +86,7 @@ export default function DashboardPage({ user: propUser }) {
               <button
                 data-testid="complete-profile-btn"
                 onClick={() => navigate('/profile-setup')}
-                className="px-8 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all duration-300 flex items-center gap-2"
+                className="px-8 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <Pencil size={20} weight="bold" />
                 Complete Profile
@@ -98,9 +98,9 @@ export default function DashboardPage({ user: propUser }) {
         {/* Security Question Banner */}
         {isSecurityQuestionMissing && (
           <div data-testid="security-question-banner" className="mb-8 glass-effect p-6 rounded-2xl border-2 border-[#B22234]">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <Key size={36} weight="fill" className="text-[#B22234]" />
+                <Key size={36} weight="fill" className="text-[#B22234] flex-shrink-0" />
                 <div>
                   <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Set a Security Question</h3>
                   <p className="text-[#A8A3B2] text-sm">
@@ -111,7 +111,7 @@ export default function DashboardPage({ user: propUser }) {
               <button
                 data-testid="set-security-question-btn"
                 onClick={() => navigate('/profile-setup')}
-                className="px-6 py-3 rounded-full bg-[#B22234] text-[#F7F5F0] font-semibold hover:bg-[#D62839] transition-all"
+                className="px-6 py-3 rounded-full bg-[#B22234] text-[#F7F5F0] font-semibold hover:bg-[#D62839] transition-all whitespace-nowrap"
               >
                 Set It Now
               </button>
@@ -122,9 +122,9 @@ export default function DashboardPage({ user: propUser }) {
         {/* Get Verified Banner */}
         {!user.is_verified && (
           <div data-testid="get-verified-banner" className="mb-8 glass-effect p-6 rounded-2xl border-2 border-[#D4AF37]">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <ShieldCheck size={40} weight="fill" className="text-[#D4AF37]" />
+                <ShieldCheck size={40} weight="fill" className="text-[#D4AF37] flex-shrink-0" />
                 <div>
                   <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Get Verified</h3>
                   <p className="text-[#A8A3B2] text-sm">Prove you&apos;re real and earn a verified badge</p>
@@ -133,7 +133,7 @@ export default function DashboardPage({ user: propUser }) {
               <button
                 data-testid="get-verified-btn"
                 onClick={() => navigate('/verification')}
-                className="px-6 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all"
+                className="px-6 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all whitespace-nowrap"
               >
                 Get Verified
               </button>
@@ -282,9 +282,9 @@ export default function DashboardPage({ user: propUser }) {
 
         {/* Support Banner */}
         <div className="glass-effect p-6 rounded-2xl mb-8 border border-[#D4AF37]">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Heart size={32} weight="fill" className="text-[#B22234]" />
+              <Heart size={32} weight="fill" className="text-[#B22234] flex-shrink-0" />
               <div>
                 <p className="text-[#F7F5F0] font-semibold">Love this site? Help keep it free!</p>
                 <p className="text-[#A8A3B2] text-sm">Your donations help cover server costs</p>
@@ -292,7 +292,7 @@ export default function DashboardPage({ user: propUser }) {
             </div>
             <button
               onClick={() => navigate('/support-us')}
-              className="px-6 py-2 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all"
+              className="px-6 py-2 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all whitespace-nowrap"
             >
               Support Us
             </button>
