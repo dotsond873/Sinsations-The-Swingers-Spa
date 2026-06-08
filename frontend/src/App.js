@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import VerificationPage from './pages/VerificationPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import MembersPage from './pages/MembersPage';
@@ -100,6 +101,7 @@ function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/support-us" element={<SupportUsPage />} />
       <Route path="/donation-success" element={<DonationSuccessPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       
       <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupPage /></ProtectedRoute>} />
       <Route path="/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />

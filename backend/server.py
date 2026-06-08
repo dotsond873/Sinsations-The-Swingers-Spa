@@ -123,6 +123,18 @@ class PersonalCreate(BaseModel):
     content: str
     category: str
 
+class SecurityQuestionSet(BaseModel):
+    question: str
+    answer: str
+
+class ResetLookup(BaseModel):
+    email: EmailStr
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+    answer: str
+    new_password: str
+
 class ContestEntryCreate(BaseModel):
     media_id: str
     caption: Optional[str] = ""
@@ -384,6 +396,66 @@ async def google_session(request: Request):
     )
     
     return response
+
+@api_router.post("/auth/security-question")
+async def set_security_question(payload: SecurityQuestionSet, current_user: User = Depends(get_current_user)):
+    q = payload.question.strip()
+    a = payload.answer.strip().lower()
+    if len(q) < 5:
+        raise HTTPException(status_code=400, detail="Question is too short")
+    if len(a) < 2:
+        raise HTTPException(status_code=400, detail="Answer is too short")
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {"$set": {
+            "security_question": q,
+            "security_answer_hash": hash_password(a),
+        }}
+    )
+    return {"message": "Security question saved"}
+
+@api_router.post("/auth/forgot-password/lookup")
+async def forgot_password_lookup(payload: ResetLookup):
+    user_doc = await db.users.find_one({"email": payload.email})
+    # Always return the same shape to avoid leaking whether an email exists
+    if not user_doc or not user_doc.get("security_question"):
+        return {"question": None, "has_question": False}
+    return {"question": user_doc["security_question"], "has_question": True}
+
+@api_router.post("/auth/forgot-password/reset")
+async def forgot_password_reset(payload: PasswordResetRequest):
+    user_doc = await db.users.find_one({"email": payload.email})
+    if not user_doc or not user_doc.get("security_answer_hash"):
+        # Generic message to avoid leaking which emails exist
+        raise HTTPException(status_code=400, detail="Unable to reset. Verify your email and answer.")
+
+    # Rate limit: max 5 failed attempts per hour
+    now = datetime.now(timezone.utc)
+    failed = user_doc.get("reset_failed_attempts", [])
+    recent_failed = [t for t in failed if datetime.fromisoformat(t) > now - timedelta(hours=1)]
+    if len(recent_failed) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in an hour.")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    if not verify_password(payload.answer.strip().lower(), user_doc["security_answer_hash"]):
+        recent_failed.append(now.isoformat())
+        await db.users.update_one(
+            {"user_id": user_doc["user_id"]},
+            {"$set": {"reset_failed_attempts": recent_failed}}
+        )
+        raise HTTPException(status_code=400, detail="Unable to reset. Verify your email and answer.")
+
+    # Success — update password, clear failed attempts
+    await db.users.update_one(
+        {"user_id": user_doc["user_id"]},
+        {"$set": {
+            "password_hash": hash_password(payload.new_password),
+            "reset_failed_attempts": []
+        }}
+    )
+    return {"message": "Password reset successful. Please log in."}
 
 @api_router.get("/auth/me")
 async def get_me(current_user: User = Depends(get_current_user)):

@@ -67,6 +67,13 @@ A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Op
 - contest_entries (week key = ISO `YYYY-Www`)
 - hotwife_posts
 
+### Phase 6 — Forgot Password (June 2026)
+- `POST /api/auth/security-question` to set/update question + answer (answer bcrypt-hashed, normalised lowercase)
+- `POST /api/auth/forgot-password/lookup` returns the question for a given email (returns null for unknown emails — no email enumeration)
+- `POST /api/auth/forgot-password/reset` verifies answer (case-insensitive) and updates password; rate-limited to 5 failed attempts/hour
+- Login page "Forgot Password?" link now wired to a new `/forgot-password` flow (email → security question → answer + new password → done)
+- Profile Setup page now has a Security Question section with 7 preset questions + custom option
+
 ## Backlog
 
 ### P0

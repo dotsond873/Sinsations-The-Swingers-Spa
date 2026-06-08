@@ -3,7 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
-import { User, Target } from '@phosphor-icons/react';
+import { User, Target, Key } from '@phosphor-icons/react';
+
+const SECURITY_QUESTION_PRESETS = [
+  "What was the name of your first pet?",
+  "What city were you born in?",
+  "What was your mother's maiden name?",
+  "What was the name of your elementary school?",
+  "What was your childhood nickname?",
+  "What's the name of your favorite teacher?",
+  "What was the make of your first car?",
+  "Custom question (enter your own below)",
+];
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -83,6 +94,15 @@ export default function ProfileSetupPage({ user: propUser }) {
     area_code: propUser?.area_code || '',
   }));
 
+  const [security, setSecurity] = useState({
+    preset: '',
+    customQuestion: '',
+    answer: '',
+    saving: false,
+    saved: propUser?.security_question ? true : false,
+    existingQuestion: propUser?.security_question || '',
+  });
+
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current || user) return;
@@ -99,9 +119,46 @@ export default function ProfileSetupPage({ user: propUser }) {
           state: res.data.state || prev.state,
           area_code: res.data.area_code || prev.area_code,
         }));
+        setSecurity(prev => ({
+          ...prev,
+          saved: !!res.data.security_question,
+          existingQuestion: res.data.security_question || '',
+        }));
       })
       .catch(() => navigate('/login'));
   }, [user, navigate]);
+
+  const saveSecurityQuestion = async () => {
+    const q = security.preset === 'Custom question (enter your own below)'
+      ? security.customQuestion.trim()
+      : security.preset;
+    if (!q || q.length < 5) {
+      toast.error('Pick or enter a question (at least 5 characters)');
+      return;
+    }
+    if (security.answer.trim().length < 2) {
+      toast.error('Answer must be at least 2 characters');
+      return;
+    }
+    setSecurity(prev => ({ ...prev, saving: true }));
+    try {
+      await axios.post(`${API}/auth/security-question`, {
+        question: q,
+        answer: security.answer,
+      }, { withCredentials: true });
+      toast.success('Security question saved');
+      setSecurity(prev => ({
+        ...prev,
+        saving: false,
+        saved: true,
+        existingQuestion: q,
+        answer: '',
+      }));
+    } catch (err) {
+      toast.error('Failed to save security question');
+      setSecurity(prev => ({ ...prev, saving: false }));
+    }
+  };
 
   const handleLookingForChange = (value) => {
     setPreferences(prev => {
@@ -340,6 +397,66 @@ export default function ProfileSetupPage({ user: propUser }) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Security Question Section */}
+          <div className="glass-effect p-8 rounded-2xl" data-testid="security-question-section">
+            <div className="flex items-center gap-3 mb-3">
+              <Key size={28} weight="fill" className="text-[#D4AF37]" />
+              <h2 className="heading-font text-2xl font-bold text-[#F7F5F0]">Security Question</h2>
+            </div>
+            <p className="text-[#A8A3B2] mb-5 text-sm">
+              Set this up so you can reset your password if you ever forget it.
+              {security.saved && (
+                <span className="block mt-2 text-[#4CAF50]">
+                  Current question: <span className="text-[#F7F5F0] font-semibold">{security.existingQuestion}</span>
+                </span>
+              )}
+            </p>
+
+            <label className="block text-[#F7F5F0] text-sm font-medium mb-2">Choose a question</label>
+            <select
+              data-testid="security-question-preset"
+              value={security.preset}
+              onChange={(e) => setSecurity({ ...security, preset: e.target.value })}
+              className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234] mb-4"
+            >
+              <option value="">Select a question…</option>
+              {SECURITY_QUESTION_PRESETS.map(q => (
+                <option key={q} value={q}>{q}</option>
+              ))}
+            </select>
+
+            {security.preset === 'Custom question (enter your own below)' && (
+              <input
+                data-testid="security-question-custom"
+                type="text"
+                value={security.customQuestion}
+                onChange={(e) => setSecurity({ ...security, customQuestion: e.target.value })}
+                placeholder="Write your own question…"
+                className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234] mb-4"
+              />
+            )}
+
+            <label className="block text-[#F7F5F0] text-sm font-medium mb-2">Your answer</label>
+            <input
+              data-testid="security-answer-input"
+              type="text"
+              value={security.answer}
+              onChange={(e) => setSecurity({ ...security, answer: e.target.value })}
+              placeholder="Not case-sensitive — keep it memorable"
+              className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234] mb-4"
+            />
+
+            <button
+              data-testid="save-security-question-btn"
+              type="button"
+              onClick={saveSecurityQuestion}
+              disabled={security.saving}
+              className="w-full py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all duration-300 disabled:opacity-50"
+            >
+              {security.saving ? 'Saving…' : security.saved ? 'Update Security Question' : 'Save Security Question'}
+            </button>
           </div>
 
           {/* Actions */}
