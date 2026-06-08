@@ -45,7 +45,7 @@ export default function LoginPage() {
             onClick={() => navigate('/')}
             className="heading-font text-3xl md:text-4xl font-bold text-[#F7F5F0] mb-3 cursor-pointer"
           >
-            Bookup your Hookup
+            Swingers Sensation
           </h1>
           <p className="text-[#A8A3B2]">Welcome back! Sign in to continue.</p>
         </div>

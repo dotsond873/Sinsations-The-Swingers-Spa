@@ -1,10 +1,11 @@
-# Bookup your Hookup - PRD
+# Swingers Sensation - PRD
 
 ## Original Problem Statement
-A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Open registration, free messaging, chatrooms, forums, member search, personals, hot wife area, "Pretty Pussy of the Week" contest, anti-catfishing verification (ID+Selfie or custom admin gesture), media uploads, and a Stripe-powered "Support Us" donation page with founder mission statement.
+A 100% FREE couples swinger website. Open registration, free messaging, chatrooms, forums, member search by name/city/state/area-code, personals, hot wife area, "Pretty Pussy of the Week" contest, anti-catfishing verification (ID+Selfie or custom admin gesture), media uploads, and a Stripe-powered "Support Us" donation page with founder mission statement.
 
 ## Admin Team
-- Admin David D., Admin Beth D., Admin Heather H., Admin Wendell S.
+- Admin David D.
+- Admin Beth D.
 
 ## Core Requirements
 - 100% FREE — no premium tiers, no paywalls
@@ -78,6 +79,14 @@ A 100% FREE couples swinger website for North Alabama and Southern Tennessee. Op
 - Dashboard now shows a **"Members near you"** widget — auto-shows up to 6 members matching your area code (falls back to state, then global)
 - Dashboard now shows a **Security Question reminder banner** for users who haven't set one yet (drives forgot-password coverage, cuts support load)
 - `/api/auth/me` now returns the `security_question` field (without the answer hash) so the frontend can detect setup state
+
+### Phase 8 — Rebrand & Cleanup (June 2026)
+- Renamed product from "Bookup your Hookup" → **"Swingers Sensation"** across all pages, nav, footers, and HTML title
+- Removed all "North Alabama / Southern Tennessee" geographic references — now national/general
+- Admin team reduced to **David D. and Beth D.** (Heather H. and Wendell S. removed)
+- Removed residency proof upload endpoint + admin pending-users filter dependency
+- New steamy hero banner with layered gradient overlays + red/gold haze on landing page
+- Members page now shows a live "X new members this week (in your area)" social-proof banner via new `GET /api/members/stats/new-this-week`
 
 ## Backlog
 

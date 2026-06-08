@@ -23,6 +23,7 @@ export default function MembersPage({ user: propUser }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [newThisWeek, setNewThisWeek] = useState(null);
 
   const [filters, setFilters] = useState({
     q: '',
@@ -39,6 +40,17 @@ export default function MembersPage({ user: propUser }) {
         .catch(() => navigate('/login'));
     }
   }, [user, navigate]);
+
+  // Fetch new-this-week counter
+  useEffect(() => {
+    if (!user) return;
+    const params = {};
+    if (user.area_code) params.area_code = user.area_code;
+    else if (user.state) params.state = user.state;
+    axios.get(`${API}/members/stats/new-this-week`, { params, withCredentials: true })
+      .then(res => setNewThisWeek(res.data))
+      .catch(() => {});
+  }, [user]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -79,6 +91,30 @@ export default function MembersPage({ user: propUser }) {
           <h1 className="heading-font text-4xl font-bold text-[#F7F5F0] mb-2">Browse Members</h1>
           <p className="text-[#A8A3B2]">Find people by name, city, state, or area code</p>
         </div>
+
+        {/* New members this week social-proof banner */}
+        {newThisWeek && newThisWeek.count > 0 && (
+          <div
+            data-testid="new-this-week-banner"
+            className="mb-6 glass-effect p-4 rounded-2xl border border-[#4CAF50]/40 flex items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4CAF50] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#4CAF50]"></span>
+              </span>
+              <p className="text-[#F7F5F0]">
+                <span className="font-bold text-[#4CAF50]">{newThisWeek.count}</span> new member{newThisWeek.count === 1 ? '' : 's'} joined this week
+                {newThisWeek.scope === 'area_code' && user?.area_code && (
+                  <span className="text-[#A8A3B2]"> in area code {user.area_code}</span>
+                )}
+                {newThisWeek.scope === 'state' && user?.state && (
+                  <span className="text-[#A8A3B2]"> in {user.state}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Search Bar */}
         <div className="glass-effect rounded-2xl p-4 mb-4">

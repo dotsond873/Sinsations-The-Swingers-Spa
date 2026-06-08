@@ -242,7 +242,7 @@ async def get_current_user(authorization: str = Header(None), session_token: str
     return User(**user_doc)
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    admin_emails = ["admin@bookup.com"]  # Can be expanded
+    admin_emails = ["admin@bookup.com", "david@swingerssensation.com", "beth@swingerssensation.com"]
     if current_user.email not in admin_emails:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
@@ -291,7 +291,7 @@ async def register(user_data: UserRegistration):
     # Create JWT token
     token = create_jwt_token(user_id, user_data.email)
     
-    return {"token": token, "user_id": user_id, "message": "Registration successful. Please upload residency proof."}
+    return {"token": token, "user_id": user_id, "message": "Registration successful. Welcome!"}
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
@@ -473,21 +473,6 @@ async def logout(current_user: User = Depends(get_current_user), session_token: 
 
 # ============ USER ROUTES ============
 
-@api_router.post("/users/upload-residency-proof")
-async def upload_residency_proof(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
-    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
-    path = f"{APP_NAME}/residency/{current_user.user_id}/{uuid.uuid4()}.{ext}"
-    data = await file.read()
-    result = put_object(path, data, file.content_type or "application/octet-stream")
-    
-    # Update user
-    await db.users.update_one(
-        {"user_id": current_user.user_id},
-        {"$set": {"residency_proof_url": result["path"]}}
-    )
-    
-    return {"message": "Residency proof uploaded. Awaiting admin approval.", "path": result["path"]}
-
 @api_router.get("/users/profile/{user_id}")
 async def get_user_profile(user_id: str, current_user: User = Depends(get_current_user)):
     user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
@@ -571,6 +556,28 @@ async def get_members(
     ).skip(skip).limit(limit).to_list(limit)
 
     return members
+
+@api_router.get("/members/stats/new-this-week")
+async def new_members_this_week(
+    current_user: User = Depends(get_current_user),
+    area_code: Optional[str] = None,
+    state: Optional[str] = None,
+):
+    """Count of members created in the last 7 days, optionally scoped to the requester's area_code/state."""
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    query: Dict[str, Any] = {
+        "created_at": {"$gte": week_ago},
+        "user_id": {"$ne": current_user.user_id},
+    }
+    if area_code:
+        digits = "".join(c for c in str(area_code) if c.isdigit())
+        if digits:
+            query["area_code"] = digits
+    elif state:
+        query["state"] = state.strip().upper()
+    total = await db.users.count_documents(query)
+    return {"count": total, "scope": "area_code" if area_code else ("state" if state else "all")}
 
 # ============ MEDIA ROUTES (Photos & Videos) ============
 
@@ -847,7 +854,7 @@ async def stripe_webhook(request: Request):
 @api_router.get("/admin/pending-users")
 async def get_pending_users(admin: User = Depends(require_admin)):
     users = await db.users.find(
-        {"approval_status": "pending", "residency_proof_url": {"$ne": None}},
+        {"approval_status": "pending"},
         {"_id": 0, "password_hash": 0}
     ).to_list(100)
     return users

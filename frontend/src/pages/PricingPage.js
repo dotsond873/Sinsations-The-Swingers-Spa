@@ -47,7 +47,7 @@ export default function PricingPage() {
             onClick={() => navigate('/')}
             className="heading-font text-2xl md:text-3xl font-bold text-[#F7F5F0] tracking-tight cursor-pointer"
           >
-            Bookup your Hookup
+            Swingers Sensation
           </h1>
           <div className="flex gap-4">
             <button

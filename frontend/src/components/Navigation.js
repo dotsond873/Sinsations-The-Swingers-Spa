@@ -28,7 +28,7 @@ export default function Navigation({ user }) {
             className="heading-font text-xl lg:text-2xl font-bold text-[#F7F5F0] cursor-pointer whitespace-nowrap"
             data-testid="nav-brand"
           >
-            Bookup your Hookup
+            Swingers Sensation
           </h1>
 
           <div className="hidden lg:flex items-center gap-4 xl:gap-5 flex-wrap">

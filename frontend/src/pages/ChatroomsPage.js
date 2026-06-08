@@ -255,7 +255,7 @@ export default function ChatroomsPage({ user: propUser }) {
                     type="text"
                     value={newRoomName}
                     onChange={(e) => setNewRoomName(e.target.value)}
-                    placeholder="e.g., North Alabama Couples"
+                    placeholder="e.g., Couples Lounge"
                     className="w-full px-4 py-3 bg-[#1C1A24] border border-[rgba(247,245,240,0.1)] rounded-lg text-[#F7F5F0] focus:outline-none focus:ring-2 focus:ring-[#B22234]"
                   />
                 </div>

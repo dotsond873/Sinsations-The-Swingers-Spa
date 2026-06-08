@@ -51,7 +51,7 @@ export default function SupportUsPage() {
             onClick={() => navigate('/')}
             className="heading-font text-2xl md:text-3xl font-bold text-[#F7F5F0] tracking-tight cursor-pointer"
           >
-            Bookup your Hookup
+            Swingers Sensation
           </h1>
           <button
             onClick={() => navigate('/dashboard')}
@@ -189,7 +189,7 @@ export default function SupportUsPage() {
       {/* Footer */}
       <footer className="py-12 px-8 bg-[#14121A] border-t border-[rgba(247,245,240,0.05)]">
         <div className="max-w-7xl mx-auto text-center text-[#757180]">
-          <p className="mb-2">Bookup your Hookup - North Alabama & South Tennessee Sexy Swingers, LLC</p>
+          <p className="mb-2">Swingers Sensation LLC</p>
           <p className="text-sm">100% Free. Forever. Thank you for your support.</p>
         </div>
       </footer>
