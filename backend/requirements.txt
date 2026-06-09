@@ -1,4 +1,4 @@
-# removed emergent package
+email-validator
 fastapi==0.110.1
 fastuuid==0.14.0
 filelock==3.25.0
