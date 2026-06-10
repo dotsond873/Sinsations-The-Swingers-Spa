@@ -28,11 +28,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-super-secret-jwt-key')
 JWT_ALGORITHM = "HS256"
 
-# Storage
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-EMERGENT_KEY = os.environ.get('EMERGENT_LLM_KEY')
-APP_NAME = os.environ.get('APP_NAME', 'bookup-hookup')
-storage_key = None
 
 # Stripe
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
