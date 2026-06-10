@@ -46,10 +46,6 @@ export default function RegisterPage() {
   };
 
   
-
-  return (
-    <div className="min-h-screen bg-[#0B0A0F] py-12 px-8">
-      <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <h1
             onClick={() => navigate('/')}
