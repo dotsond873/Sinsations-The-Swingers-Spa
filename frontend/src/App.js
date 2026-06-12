@@ -55,7 +55,7 @@ function ProtectedRoute({ children }) {
     }
 
    
-   const checkAuth = async () => {
+  const checkAuth = async () => {
   try {
     // If we have a token, trust it first
     const token = localStorage.getItem('token');
