@@ -54,18 +54,28 @@ function ProtectedRoute({ children }) {
       return;
     }
 
-    const checkAuth = async () => {
-      try {
-        const response = await axios.get(`${API}/auth/me`, {
-          withCredentials: true,
-        });
-        setUser(response.data);
-        setIsAuthenticated(true);
-      } catch (error) {
+    const checkAuth = async (retries = 3, delay = 2000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await axios.get(`${API}/auth/me`, {
+        withCredentials: true,
+      });
+      setUser(response.data);
+      setIsAuthenticated(true);
+      return;
+    } catch (error) {
+      if (i < retries - 1) {
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // double the wait each retry: 2s, 4s, 8s
+      } else {
+        // All retries exhausted
         setIsAuthenticated(false);
         navigate('/login', { state: { from: location.pathname } });
       }
-    };
+    }
+  }
+};
 
     checkAuth();
   }, [location.pathname, location.state, navigate]);
