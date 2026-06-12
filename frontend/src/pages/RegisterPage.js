@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'ajax';
+import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
 import { User, Envelope, Lock, MapPin, Calendar } from '@phosphor-icons/react';
