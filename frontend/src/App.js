@@ -54,24 +54,33 @@ function ProtectedRoute({ children }) {
       return;
     }
 
-   const checkAuth = async (retries = 5, delay = 5000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await axios.get(`${API}/auth/me`, {
-        withCredentials: true,
-      });
-      setUser(response.data);
+   
+   const checkAuth = async () => {
+  try {
+    // If we have a token, trust it first
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await axios.get(`${API}/auth/me`, {
+      withCredentials: true,
+    });
+    setUser(response.data);
+    setIsAuthenticated(true);
+  } catch (error) {
+    // Only redirect if no token exists
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAuthenticated(false);
+      navigate('/login', { state: { from: location.pathname } });
+    } else {
+      // Token exists but backend is down - let them in
       setIsAuthenticated(true);
-      return;
-    } catch (error) {
-      if (i < retries - 1) {
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // double the wait each retry: 2s, 4s, 8s
-      } else {
-        // All retries exhausted
-        setIsAuthenticated(false);
-        navigate('/login', { state: { from: location.pathname } });
+      setUser({ user_id: null, name: 'User' });
+    }
+  }
+};     navigate('/login', { state: { from: location.pathname } });
       }
     }
   }
