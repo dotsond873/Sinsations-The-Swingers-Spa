@@ -55,10 +55,13 @@ export default function RegisterPage() {
           </h1>
           <p className="text-[#A8A3B2]">Join our exclusive community</p>
         
+          
+        </div>
 
         <div className="glass-effect p-8 rounded-2xl">
-          <form onSubmit={handleRegister} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+<form onSubmit={handleRegister} className="space-y-6">
+
+        
               <div>
                 <label className="block text-[#F7F5F0] text-sm font-medium mb-2">
                   Full Name
