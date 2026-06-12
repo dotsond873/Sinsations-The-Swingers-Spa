@@ -54,7 +54,7 @@ export default function RegisterPage() {
             Swingers Sensation
           </h1>
           <p className="text-[#A8A3B2]">Join our exclusive community</p>
-        </div>
+        
 
         <div className="glass-effect p-8 rounded-2xl">
           <form onSubmit={handleRegister} className="space-y-6">
