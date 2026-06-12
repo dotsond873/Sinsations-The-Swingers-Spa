@@ -54,7 +54,8 @@ function ProtectedRoute({ children }) {
       return;
     }
 
-    const checkAuth = async (retries = 5, delay = 5000) => { (let i = 0; i < retries; i++) {
+   const checkAuth = async (retries = 5, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
     try {
       const response = await axios.get(`${API}/auth/me`, {
         withCredentials: true,
