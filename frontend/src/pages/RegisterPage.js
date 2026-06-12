@@ -204,13 +204,11 @@ export default function RegisterPage() {
             >
               Sign in
             </button>
-          </p>
-         </form>
-        </div>
-      </div>
-    </div>
-   </div>
-   </div>
-   </>
-  );
-}
+          207:       </p>
+208:     </form>
+209:    </div>
+210:   </div>
+211:  </div>
+212: </div>
+213: </>
+214: );
