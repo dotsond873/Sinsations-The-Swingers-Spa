@@ -8,6 +8,7 @@ import { User, Envelope, Lock, MapPin, Calendar } from '@phosphor-icons/react';
 export default function RegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const planId = location.state?.planId;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,6 +32,7 @@ export default function RegisterPage() {
       const response = await axios.post(`${API}/auth/register`, {
         ...formData,
         age: parseInt(formData.age),
+        planId: planId,
       });
 
       localStorage.setItem('token', response.data.token);
@@ -137,7 +139,6 @@ export default function RegisterPage() {
                 Gender
               </label>
               <select
-
                 data-testid="register-gender-select"
                 name="gender"
                 value={formData.gender}
