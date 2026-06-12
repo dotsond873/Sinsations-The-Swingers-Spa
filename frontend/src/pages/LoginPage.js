@@ -114,7 +114,6 @@ export default function LoginPage() {
           </div>
 
           
-
           <p className="text-center text-[#A8A3B2] text-sm mt-6">
             Don't have an account?{' '}
             <button
