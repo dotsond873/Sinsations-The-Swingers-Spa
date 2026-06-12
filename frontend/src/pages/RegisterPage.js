@@ -44,8 +44,8 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
-
-  
+      return (
+        <>  
         <div className="text-center mb-8">
           <h1
             onClick={() => navigate('/')}
