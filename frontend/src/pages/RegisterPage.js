@@ -97,7 +97,7 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
-            </div>
+            
 
             <div>
               <label className="block text-[#F7F5F0] text-sm font-medium mb-2">
