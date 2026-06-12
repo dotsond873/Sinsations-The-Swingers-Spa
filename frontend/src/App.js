@@ -80,10 +80,7 @@ function ProtectedRoute({ children }) {
       setUser({ user_id: null, name: 'User' });
     }
   }
-};     navigate('/login', { state: { from: location.pathname } });
-      }
-    }
-  }
+    
 };
 
     checkAuth();
