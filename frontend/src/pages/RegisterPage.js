@@ -137,6 +137,7 @@ export default function RegisterPage() {
                 Gender
               </label>
               <select
+
                 data-testid="register-gender-select"
                 name="gender"
                 value={formData.gender}
