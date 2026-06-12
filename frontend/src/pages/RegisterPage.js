@@ -205,6 +205,7 @@ export default function RegisterPage() {
               Sign in
             </button>
           </p>
+         </form>
         </div>
       </div>
     </div>
