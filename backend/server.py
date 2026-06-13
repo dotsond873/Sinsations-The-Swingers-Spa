@@ -27,9 +27,7 @@ async def keep_alive():
             pass
         await asyncio.sleep(600)  # ping every 10 minutes
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(keep_alive())
+
 
 
 ROOT_DIR = Path(__file__).parent
