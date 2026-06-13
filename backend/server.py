@@ -1470,3 +1470,23 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+import asyncio
+import httpx
+
+async def keep_alive():
+    await asyncio.sleep(60)
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("https://app-backend-6nhy.onrender.com/api/health")
+        except:
+            pass
+        await asyncio.sleep(600)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(keep_alive())
+
+@api_router.get("/health")
+async def health():
+    return {"status": "ok"}
