@@ -21,7 +21,7 @@ export default function DashboardPage({ user: propUser }) {
     axios.get(`${API}/contest/winner`)
       .then(res => setWinner(res.data))
       .catch(() => {});
-  }, [user, navigate]);
+  }, [navigate]);
 
   // Fetch nearby members once we know the user's area code / state
   useEffect(() => {
