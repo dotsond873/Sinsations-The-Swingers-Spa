@@ -93,4 +93,80 @@ export default function DashboardPage({ user: propUser }) {
               <div className="flex items-center gap-4">
                 <Key size={36} weight="fill" className="text-[#B22234] flex-shrink-0" />
                 <div>
-                  <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Set a Security Question</h3>
+                  <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Set a Security Question</h3></h3>
+                  <p className="text-[#A8A3B2] text-sm">Without one you wont be able to reset your password if you forget it.</p>
+                </div>
+              </div>
+              <button
+                data-testid="set-security-question-btn"
+                onClick={() => navigate('/profile-setup')}
+                className="px-6 py-3 rounded-full bg-[#B22234] text-[#F7F5F0] font-semibold hover:bg-[#D62839] transition-all whitespace-nowrap"
+              >
+                Set It Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!user.is_verified && (
+          <div data-testid="get-verified-banner" className="mb-8 glass-effect p-6 rounded-2xl border-2 border-[#D4AF37]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <ShieldCheck size={40} weight="fill" className="text-[#D4AF37] flex-shrink-0" />
+                <div>
+                  <h3 className="heading-font text-xl font-bold text-[#F7F5F0]">Get Verified</h3>
+                  <p className="text-[#A8A3B2] text-sm">Prove you are real and earn a verified badge</p>
+                </div>
+              </div>
+              <button
+                data-testid="get-verified-btn"
+                onClick={() => navigate('/verification')}
+                className="px-6 py-3 rounded-full bg-[#D4AF37] text-[#0B0A0F] font-semibold hover:bg-[#F0C847] transition-all whitespace-nowrap"
+              >
+                Get Verified
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-12">
+          <h1 className="heading-font text-4xl md:text-5xl font-bold text-[#F7F5F0] mb-3">
+            Welcome back, {user.name}!
+          </h1>
+          <div className="flex items-center gap-4">
+            <span className="px-4 py-1 rounded-full bg-[#4CAF50] text-white text-sm font-bold">FREE MEMBER</span>
+            {user.is_verified && (
+              <span className="px-4 py-1 rounded-full bg-[#D4AF37] text-[#0B0A0F] text-sm font-bold flex items-center gap-2">
+                <ShieldCheck size={16} weight="fill" />
+                VERIFIED
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+          <QuickAction icon={<Users size={32} weight="duotone" />} title="Browse Members" description="Find connections near you" onClick={() => navigate('/members')} testId="browse-members-card" />
+          <QuickAction icon={<Chat size={32} weight="duotone" />} title="Messages" description="Chat freely, exchange numbers" onClick={() => navigate('/messages')} testId="messages-card" />
+          <QuickAction icon={<Camera size={32} weight="duotone" />} title="My Media" description="Upload photos and videos" onClick={() => navigate('/my-media')} testId="media-card" />
+          <QuickAction icon={<Fire size={32} weight="duotone" />} title="Hot Wife" description="Exclusive section" onClick={() => navigate('/hotwife')} testId="hotwife-card" />
+          <QuickAction icon={<Gift size={32} weight="duotone" />} title="Referrals" description="Invite friends" onClick={() => navigate('/referral')} testId="referral-card" />
+        </div>
+
+        {nearbyMembers.length > 0 && (
+          <div data-testid="nearby-members" className="mb-12">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <MapPin size={28} weight="fill" className="text-[#D4AF37]" />
+                <h2 className="heading-font text-2xl font-bold text-[#F7F5F0]">
+                  Members near you{nearbyLabel ? ' (' + nearbyLabel + ')' : ''}
+                </h2>
+              </div>
+              <button data-testid="see-all-members-btn" onClick={() => navigate('/members')} className="text-[#D4AF37] hover:text-[#F0C847] text-sm font-semibold">See all</button>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {nearbyMembers.map(m => (
+                <div key={m.user_id} data-testid={'nearby-member-' + m.user_id} onClick={() => navigate('/profile/' + m.user_id)} className="glass-effect p-4 rounded-2xl cursor-pointer hover:-translate-y-1 transition-all flex items-center gap-3">
+                  {m.picture ? (
+                    <img src={m.picture} alt={m.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-[#1C1A24] flex items-center justify-cent
