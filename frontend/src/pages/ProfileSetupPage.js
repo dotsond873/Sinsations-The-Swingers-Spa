@@ -8,19 +8,6 @@ import { User, Target, Key } from '@phosphor-icons/react';
 import asyncio
 import httpx
 
-async def keep_alive():
-    await asyncio.sleep(60)  # wait 1 min after startup
-    while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.get("https://app-backend-6nhy.onrender.com/api/health")
-        except:
-            pass
-        await asyncio.sleep(600)  # ping every 10 minutes
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(keep_alive())
 
 const SECURITY_QUESTION_PRESETS = [
   "What was the name of your first pet?",
