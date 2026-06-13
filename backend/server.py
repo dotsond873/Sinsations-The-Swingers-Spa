@@ -53,7 +53,13 @@ STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-# ============ MODELS ============
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(keep_alive())
+
+# ============ MODELS ============= 
+
+
 
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
