@@ -12,8 +12,7 @@ export default function DashboardPage({ user: propUser }) {
   const [nearbyMembers, setNearbyMembers] = useState([]);
 
   useEffect(() => {
-    if (!user) {
-      axios.get(`${API}/auth/me`, { withCredentials: true })
+     axios.get(`${API}/auth/me`, { withCredentials: true })
         .then(res => setUser(res.data))
         .catch(() => navigate('/login'));
     }
