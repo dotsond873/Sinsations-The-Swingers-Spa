@@ -8,6 +8,8 @@ import Navigation from '../components/Navigation';
 export default function DashboardPage({ user: propUser }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(propUser || null);
+  
+const [user, setUser] = useState(null);
   const [winner, setWinner] = useState(null);
   const [nearbyMembers, setNearbyMembers] = useState([]);
 
@@ -15,11 +17,11 @@ export default function DashboardPage({ user: propUser }) {
     axios.get(API + '/auth/me', { withCredentials: true })
       .then(res => setUser(res.data))
       .catch(() => {});
+
     axios.get(API + '/contest/winner')
       .then(res => setWinner(res.data))
       .catch(() => {});
   }, [navigate]);
-
   useEffect(() => {
     if (!user) return;
     const fetchByParams = async (params) => {
