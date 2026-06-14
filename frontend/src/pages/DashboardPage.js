@@ -34,6 +34,7 @@ export default function DashboardPage({ user: propUser }) {
     const run = async () => {
       let results = [];
       if (user.area_code) results = await fetchByParams({ area_code: user.area_code, limit: 12 });
+
       if (results.length === 0 && user.state) results = await fetchByParams({ state: user.state, limit: 12 });
       if (results.length === 0) results = await fetchByParams({ limit: 12 });
       setNearbyMembers(results.slice(0, 6));
