@@ -7,7 +7,7 @@ import Navigation from '../components/Navigation';
 
 export default function DashboardPage({ user: propUser }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(propUser || null);
+  
   
 const [user, setUser] = useState(null);
   const [winner, setWinner] = useState(null);
