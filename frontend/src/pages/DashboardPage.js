@@ -14,8 +14,7 @@ export default function DashboardPage({ user: propUser }) {
   useEffect(() => {
     axios.get(API + '/auth/me', { withCredentials: true })
       .then(res => setUser(res.data))
-      .catch(() => navigate('/login'));
-
+      .catch(() => {});
     axios.get(API + '/contest/winner')
       .then(res => setWinner(res.data))
       .catch(() => {});
