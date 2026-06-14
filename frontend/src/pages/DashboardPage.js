@@ -40,7 +40,9 @@ export default function DashboardPage({ user: propUser }) {
       setNearbyMembers(results.slice(0, 6));
     };
     run();
-  }, [user]);  if (!user) {
+  }, [user]); 
+
+ if (!user) {
     return <div className="min-h-screen bg-[#0B0A0F] flex items-center justify-center">
       <div className="text-[#F7F5F0]">Loading...</div>
     </div>;
