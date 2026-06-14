@@ -193,4 +193,4 @@ function QuickAction({ icon, title, description, onClick, testId }) {
       <p className="text-[#A8A3B2] text-sm">{description}</p>
     </div>
   );
-} 
+}  
