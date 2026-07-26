@@ -57,13 +57,19 @@ export default function LandingPage() {
           </div>
 
           <h2 className="heading-font text-5xl sm:text-6xl lg:text-8xl font-bold text-[#F7F5F0] mb-6 tracking-tight leading-[1.05]">
-            Swingers
-            <br />
-            <span className="text-[#D4AF37] italic">Sensation</span>
+            Sinsations
+<br />
+<span className="text-[#D4AF37] italic">
+  Swinger Lifestyle
+</span>
           </h2>
           <p className="text-xl md:text-2xl text-[#F7F5F0]/80 max-w-3xl mx-auto mb-10 font-light">
-            Where like-minded couples and singles meet, mingle and play.<br className="hidden sm:block" />
-            Connect freely. Message freely. <span className="text-[#D4AF37] font-semibold">Live unapologetically.</span>
+            Where open-minded singles and couples meet, connect, and explore.
+<br className="hidden sm:block" />
+Private. Secure. Discreet.{" "}
+<span className="text-[#D4AF37] font-semibold">
+  Live unapologetically.
+</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
