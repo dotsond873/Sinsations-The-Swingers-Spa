@@ -15,6 +15,7 @@ export default function LandingPage() {
           </h1>
           <div className="flex gap-4">
             <button
+
               data-testid="nav-login-btn"
               onClick={() => navigate('/login')}
               className="px-6 py-2 rounded-full border border-[rgba(247,245,240,0.2)] text-[#F7F5F0] hover:bg-[rgba(247,245,240,0.1)] transition-all duration-300"
