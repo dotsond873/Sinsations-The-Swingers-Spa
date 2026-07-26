@@ -11,7 +11,7 @@ export default function LandingPage() {
       <nav className="glass-effect fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
           <h1 className="heading-font text-2xl md:text-3xl font-bold text-[#F7F5F0] tracking-tight">
-            Swingers Sensation
+            Sinsations
           </h1>
           <div className="flex gap-4">
             <button
