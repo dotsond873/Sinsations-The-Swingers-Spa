@@ -366,3 +366,153 @@ async def forgot_password_reset(payload: PasswordResetRequest):
     # Success — update password, clear failed attempts
     await db.users.update_one(
         {"user_i
+@api_router.get("/members")
+async def get_members(
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 50,
+    gender: Optional[str] = None,
+    q: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    area_code: Optional[str] = None,
+    orientation: Optional[str] = None,
+    age_range: Optional[str] = None,
+):
+    import re
+    query: Dict[str, Any] = {}
+    if gender:
+        query["gender"] = gender
+    if city:
+        query["$or"] = [
+            {"city": {"$regex": re.escape(city), "$options": "i"}},
+            {"location": {"$regex": re.escape(city), "$options": "i"}},
+        ]
+    if state:
+        query["state"] = state.strip().upper()
+    if area_code:
+        digits = "".join(c for c in str(area_code) if c.isdigit())
+        if digits:
+            query["area_code"] = digits
+    if orientation:
+        query["preferences.orientation"] = orientation
+    if age_range:
+        query["preferences.age_range"] = age_range
+    if q:
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        text_or = [
+            {"name": rx},
+            {"city": rx},
+            {"state": rx},
+            {"location": rx},
+            {"area_code": rx},
+        ]
+        # combine with existing $or if needed
+        if "$or" in query:
+            query = {"$and": [query, {"$or": text_or}]}
+        else:
+            query["$or"] = text_or
+
+    members = await db.users.find(
+        query,
+        {"_id
+    return media_list
+
+@api_router.get("/media/{media_id}")
+async def get_media(media_id: str, authorization: str = Header(None), auth: str = Query(None)):
+    # Support query param for img tags
+    auth_header = authorization or (f"Bearer {auth}" if auth else None)
+    
+    # Get current user
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header.replace("Bearer ", "") if auth_header else None
+    
+    # Verify user
+    try:
+        user = await get_current_user(authorization=auth_header if authorization else None, session_token=token if not authorization else None)
+    except:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+    
+    # Get media
+    media_doc = await db.media.find_one({"media_id": media_id, "is_deleted": False}, {"_id": 0})
+    if not media_doc:
+        raise HTTPException(status_code=404, detail="Media not found")
+    
+    # Check access: owner can always access, others need premium for non-public
+    if media_doc["user_id"] != user.user_id:
+        if not media_doc.get("is_public", False) and not user.is_premium:
+            raise HTTPException(status_code=403, detail="Premium membership required")
+    
+    data, content_type = get_object(media_doc["storage_path"])
+    return Response(content=data, media_type=media_doc.get("content_type", content_type))
+
+@api_router.delete("/media/{media_id}")
+async def delete_media(media_id: str, current_user: User = Depends(get_current_user)):
+    media_doc = await db.media.find_one({"media_id": media_id, "user_id": current_user.user_id})
+    if not media_doc:
+        raise HTTPException(status_code=404, detail="Media not found")
+    
+    await db.media.update_one(
+        {"media_id": media_id},
+        {"$set": {"is_deleted": True}}
+    )
+    
+    return {"message": "Media deleted"}
+
+# ============ MESSAGING ROUTES ============
+
+
+# ============ MESSAGING ROUTES ============
+
+@api_router.post("/messages")
+async def send_message(msg: MessageCreate, current_user: User = Depends(get_current_user)):
+    message_doc = {
+        "message_id": f"msg_{uuid.uuid4().hex[:12]}",
+        "sender_id": current_user.user_id,
+        "recipient_id": msg.recipient_id,
+        "content": msg.content,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.messages.insert_one(message_doc)
+    return {"message_id": message_doc["message_id"], "message": "Message sent"}
+
+@api_router.get("/messages")
+async def get_messages(current_user: User = Depends(get_current_user)):
+    messages = await db.messages.find(
+        {"$or": [{"sender_id": current_user.user_id}, {"recipient_id": current_user.user_id}]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return messages
+
+# ============ PAYMENT ROUTES ============
+
+PLANS = {
+    "weekly": {"amount": 10.0, "currency": "usd", "name": "Weekly"},
+    "monthly": {"amount": 29.99, "currency": "usd", "name": "Monthly"},
+    "yearly": {"amount": 99.99, "currency": "usd", "name": "Yearly"},
+    "lifetime": {"amount": 199.99, "currency": "usd", "name": "Lifetime"}
+}
+
+@api_router.post("/payment/checkout")
+async def create_checkout(request: Request, current_user: User = Depends(get_current_user)):
+    data = await request.json()
+    plan_id = data.get("plan_id")
+    origin_url = data.get("origin_url")
+    
+    if plan_id not in PLANS:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    plan = PLANS[plan_id]
+    success_url = f"{origin_url}/payment-success?session_id={{{{CHECKOUT_SESSION_ID}}}}"
+    cancel_url = f"{origin_url}/pricing"
+    
+    metadata = {"user_id": current_user.user_id, "plan_id": plan_id, "email": current_user.email}
+
+    session = await asyncio.to_thread(
+        stripe.checkout.Session.create,
+        mode="payment",
+        line_items=[{
+            "price_data": {
