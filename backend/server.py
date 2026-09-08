@@ -916,3 +916,320 @@ async def approve_verification(verification_id: str, admin: User = Depends(requi
 
 @api_router.post("/admin/reject-verification/{verification_id}")
 async def reject_verification(verification_id: str, request: Request, admin: User = Depends(require_admin)):
+async def reject_verification(verification_id: str, request: Request, admin: User = Depends(require_admin)):
+    data = await request.json()
+    reason = data.get("reason", "Verification rejected")
+    
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    await db.verifications.update_one(
+        {"verification_id": verification_id},
+        {"$set": {
+            "status": "rejected",
+            "rejection_reason": reason,
+            "rejected_by": admin.user_id,
+            "rejected_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Notify user
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_rejected",
+        "title": "Verification Not Approved",
+        "message": f"Your verification was not approved. Reason: {reason}. Please try again.",
+        "user_id": verification["user_id"],
+        "for_admins": False,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Verification rejected"}
+
+# ============ NOTIFICATIONS ============
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: User = Depends(get_current_user)):
+    notifications = await db.notifications.find(
+        {"user_id": current_user.user_id, "for_admins": False},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return notifications
+
+@api_router.get("/admin/notifications")
+async def get_admin_notifications(admin: User = Depends(require_admin)):
+    notifications = await db.notifications.find(
+        {"for_admins": True},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return notifications
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
+    await db.notifications.update_one(
+        {"notification_id": notification_id},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+# ============ LIKES / FAVORITES ============
+
+@api_router.post("/members/{user_id}/like")
+async def like_member(user_id: str, current_user: User = Depends(get_current_user)):
+    if user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot like yourself")
+    
+    existing = await db.likes.find_one({
+        "liker_id": current_user.user_id,
+        "liked_id": user_id
+    })
+    
+    if existing:
+        # Unlike
+        await db.likes.delete_one({"liker_id": current_user.user_id, "liked_id": user_id})
+        return {"message": "Unliked", "liked": False}
+    else:
+        # Like
+        like_doc = {
+            "like_id": f"like_{uuid.uuid4().hex[:12]}",
+            "liker_id": current_user.user_id,
+            "liked_id": user_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.likes.insert_one(like_doc)
+        
+        # Notify the liked user
+        notification_doc = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "type": "new_like",
+            "title": "Someone likes you!",
+            "message": f"{current_user.name} liked your profile",
+            "user_id": user_id,
+            "from_user_id": current_user.user_id,
+            "for_admins": False,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+        
+        return {"message": "Liked", "liked": True}
+
+@api_router.get("/members/{user_id}/is-liked")
+async def check_if_liked(user_id: str, current_user: User = Depends(get_current_user)):
+    existing = await db.likes.find_one({
+        "liker_id": current_user.user_id,
+        "liked_id": user_id
+    })
+    return {"liked": existing is not None}
+
+@api_router.get("/likes/received")
+async def get_received_likes(current_user: User = Depends(get_current_user)):
+    likes = await db.likes.find({"liked_id": current_user.user_id}, {"_id": 0}).to_list(100)
+    # Get liker details
+    liker_ids = [l["liker_id"] for l in likes]
+    likers = await db.users.find({"user_id": {"$in": liker_ids}}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"likes": likes, "likers": likers}
+
+@api_router.get("/likes/given")
+async def get_given_likes(current_user: User = Depends(get_current_user)):
+    likes = await db.likes.find({"liker_id": current_user.user_id}, {"_id": 0}).to_list(100)
+    liked_ids = [l["liked_id"] for l in likes]
+    liked_users = await db.users.find({"user_id": {"$in": liked_ids}}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return {"likes": likes, "liked_users": liked_users}
+
+# ============ PROFILE PHOTO UPLOAD ============
+
+@api_router.post("/users/upload-photo")
+async def upload_profile_photo(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    path = f"{APP_NAME}/profiles/{current_user.user_id}/photo.{ext}"
+    data = await file.read()
+    
+    try:
+        result = put_object(path, data, file.content_type or "image/jpeg")
+        
+        # Update user picture
+        await db.users.update_one(
+            {"user_id": current_user.user_id},
+            {"$set": {"picture": result["path"]}}
+        )
+        
+        return {"message": "Photo uploaded", "path": result["path"]}
+    except Exception as e:
+        logger.error(f"Photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Photo upload failed")
+
+@api_router.post("/verification/upload-photo")
+async def upload_verification_photo(
+    file: UploadFile = File(...),
+    photo_type: str = Query(...),  # "id", "selfie", or "task"
+    current_user: User = Depends(get_current_user)
+):
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    path = f"{APP_NAME}/verifications/{current_user.user_id}/{photo_type}_{uuid.uuid4().hex[:8]}.{ext}"
+    data = await file.read()
+    data = await file.read()
+    
+    try:
+        result = put_object(path, data, file.content_type or "image/jpeg")
+        return {"message": "Photo uploaded", "path": result["path"], "photo_type": photo_type}
+    except Exception as e:
+        logger.error(f"Verification photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Photo upload failed")
+
+# ============ CHATROOMS ROUTES ============
+
+@api_router.get("/chatrooms")
+async def list_chatrooms(current_user: User = Depends(get_current_user)):
+    rooms = await db.chatrooms.find({"is_deleted": {"$ne": True}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return rooms
+
+@api_router.post("/chatrooms")
+async def create_chatroom(payload: ChatroomCreate, current_user: User = Depends(get_current_user)):
+    room_doc = {
+        "room_id": f"room_{uuid.uuid4().hex[:12]}",
+        "name": payload.name.strip(),
+        "description": (payload.description or "").strip(),
+        "created_by": current_user.user_id,
+        "created_by_name": current_user.name,
+        "members": [current_user.user_id],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.chatrooms.insert_one(room_doc)
+    room_doc.pop("_id", None)
+    return room_doc
+
+@api_router.post("/chatrooms/{room_id}/join")
+async def join_chatroom(room_id: str, current_user: User = Depends(get_current_user)):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    await db.chatrooms.update_one(
+        {"room_id": room_id},
+        {"$addToSet": {"members": current_user.user_id}}
+    )
+    return {"message": "Joined", "room_id": room_id}
+
+@api_router.get("/chatrooms/{room_id}/messages")
+async def get_chatroom_messages(room_id: str, current_user: User = Depends(get_current_user), limit: int = 100):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    msgs = await db.chatroom_messages.find({"room_id": room_id}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return msgs
+
+@api_router.post("/chatrooms/{room_id}/messages")
+async def send_chatroom_message(room_id: str, payload: ForumPostCreate, current_user: User = Depends(get_current_user)):
+    room = await db.chatrooms.find_one({"room_id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Chatroom not found")
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    msg_doc = {
+        "message_id": f"cmsg_{uuid.uuid4().hex[:12]}",
+        "room_id": room_id,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.chatroom_messages.insert_one(msg_doc)
+    msg_doc.pop("_id", None)
+    return msg_doc
+
+# ============ FORUMS ROUTES ============
+
+@api_router.get("/forums")
+async def list_forums(current_user: User = Depends(get_current_user), category: Optional[str] = None):
+    query = {"is_deleted": {"$ne": True}}
+    if category:
+        query["category"] = category
+    forums = await db.forums.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return forums
+
+@api_router.post("/forums")
+async def create_forum(payload: ForumCreate, current_user: User = Depends(get_current_user)):
+    forum_doc = {
+        "forum_id": f"forum_{uuid.uuid4().hex[:12]}",
+        "title": payload.title.strip(),
+        "description": (payload.description or "").strip(),
+        "category": payload.category,
+        "created_by": current_user.user_id,
+        "created_by_name": current_user.name,
+        "post_count": 0,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.forums.insert_one(forum_doc)
+    forum_doc.pop("_id", None)
+    return forum_doc
+
+@api_router.get("/forums/{forum_id}")
+async def get_forum(forum_id: str, current_user: User = Depends(get_current_user)):
+    forum = await db.forums.find_one({"forum_id": forum_id}, {"_id": 0})
+    if not forum:
+        raise HTTPException(status_code=404, detail="Forum not found")
+    posts = await db.forum_posts.find({"forum_id": forum_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    return {"forum": forum, "posts": posts}
+
+@api_router.post("/forums/{forum_id}/posts")
+async def create_forum_post(forum_id: str, payload: ForumPostCreate, current_user: User = Depends(get_current_user)):
+    forum = await db.forums.find_one({"forum_id": forum_id})
+    if not forum:
+        raise HTTPException(status_code=404, detail="Forum not found")
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Post cannot be empty")
+    post_doc = {
+        "post_id": f"post_{uuid.uuid4().hex[:12]}",
+        "forum_id": forum_id,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.forum_posts.insert_one(post_doc)
+    await db.forums.update_one({"forum_id": forum_id}, {"$inc": {"post_count": 1}})
+    post_doc.pop("_id", None)
+    return post_doc
+
+# ============ PERSONALS ROUTES ============
+
+@api_router.get("/personals")
+async def list_personals(current_user: User = Depends(get_current_user), category: Optional[str] = None):
+    query = {"is_deleted": {"$ne": True}}
+    if category:
+        query["category"] = category
+    personals = await db.personals.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return personals
+
+@api_router.post("/personals")
+async def create_personal(payload: PersonalCreate, current_user: User = Depends(get_current_user)):
+    personal_doc = {
+        "personal_id": f"prs_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "title": payload.title.strip(),
+        "content": payload.content.strip(),
+        "category": payload.category,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.personals.insert_one(personal_doc)
+    personal_doc.pop("_id", None)
+    return personal_doc
+
+@api_router.delete("/personals/{personal_id}")
+async def delete_personal(personal_id: str, current_user: User = Depends(get_current_user)):
+    personal = await db.personals.find_one({"personal_id": personal_id})
+    if not personal:
+        raise HTTPException(status_code=404, detail="Personal not found")
+    if personal["user_id"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    await db.personals.update_one({"personal_id": personal_id}, {"$set": {"is_deleted": True}})
+    return {"message": "Deleted"}
+
+# ============ CONTEST ROUTES (Pretty Pussy of the Week) ============
