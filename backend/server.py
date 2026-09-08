@@ -178,3 +178,191 @@ class Forum(BaseModel):
 
 class ForumPostCreate(BaseModel):
     content:
+# ============ AUTH HELPERS ============
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_jwt_token(user_id: str, email: str) -> str:
+    payload = {
+        "user_id": user_id,
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+async def get_current_user(authorization: str = Header(None), session_token: str = Cookie(None)) -> User:
+    token = None
+    
+    # Check cookie first, then Authorization header
+    if session_token:
+        token = session_token
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check if it's a JWT token or session token
+    try:
+        # Try JWT first
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+    except:
+        # Check session in database
+        session_doc = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+        if not session_doc:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        # Check expiry
+        expires_at = session_doc["expires_at"]
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Session expired")
+        
+        user_id = session_doc["user_id"]
+    
+    # Get user
+    user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return User(**user_doc)
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    admin_emails = ["admin@bookup.com", "david@swingerssensation.com", "beth@swingerssensation.com"]
+    if current_user.email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+async def require_premium(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_premium:
+        raise HTTPException(status_code=403, detail="Premium membership required")
+    return current_user
+
+# ============ AUTH ROUTES ============
+
+@api_router.post("/auth/register")
+async def register(user_data: UserRegistration):
+    # Check if user exists
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    hashed_pw = hash_password(user_data.password)
+    
+    user_doc = {
+        "user_id": user_id,
+        "email": user_data.email,
+        "password_hash": hashed_pw,
+        "name": user_data.name,
+        "age": user_data.age,
+        "gender": user_data.gender,
+        "location": user_data.location,
+        "picture": None,
+        "bio": None,
+        "preferences": {},
+        "is_verified": False,
+        "is_premium": True,
+        "premium_plan": "free",
+        "residency_proof_url": None,
+        "approval_status": "approved",
+        "approved_by": "auto",
+    "approved_at": None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user_doc)
+    
+    # Create JWT token
+    token = create_jwt_token(user_id, user_data.email)
+    
+    return {"token": token, "user_id": user_id, "message": "Registration successful. Welcome!"}
+
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin):
+    user_doc = await db.users.find_one({"email": credentials.email})
+    if not user_doc:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if not verify_password(credentials.password, user_doc["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_jwt_token(user_doc["user_id"], user_doc["email"])
+    
+    response = JSONResponse(content={"token": token, "user_id": user_doc["user_id"]})
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7*24*60*60
+    )
+    return response
+
+    
+    return response
+
+@api_router.post("/auth/security-question")
+async def set_security_question(payload: SecurityQuestionSet, current_user: User = Depends(get_current_user)):
+    q = payload.question.strip()
+    a = payload.answer.strip().lower()
+    if len(q) < 5:
+        raise HTTPException(status_code=400, detail="Question is too short")
+    if len(a) < 2:
+        raise HTTPException(status_code=400, detail="Answer is too short")
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {"$set": {
+            "security_question": q,
+            "security_answer_hash": hash_password(a),
+        }}
+    )
+    return {"message": "Security question saved"}
+
+@api_router.post("/auth/forgot-password/lookup")
+async def forgot_password_lookup(payload: ResetLookup):
+    user_doc = await db.users.find_one({"email": payload.email})
+    # Always return the same shape to avoid leaking whether an email exists
+    if not user_doc or not user_doc.get("security_question"):
+        return {"question": None, "has_question": False}
+    return {"question": user_doc["security_question"], "has_question": True}
+
+@api_router.post("/auth/forgot-password/reset")
+async def forgot_password_reset(payload: PasswordResetRequest):
+    user_doc = await db.users.find_one({"email": payload.email})
+    if not user_doc or not user_doc.get("security_answer_hash"):
+        # Generic message to avoid leaking which emails exist
+        raise HTTPException(status_code=400, detail="Unable to reset. Verify your email and answer.")
+
+    # Rate limit: max 5 failed attempts per hour
+    now = datetime.now(timezone.utc)
+    failed = user_doc.get("reset_failed_attempts", [])
+    recent_failed = [t for t in failed if datetime.fromisoformat(t) > now - timedelta(hours=1)]
+    if len(recent_failed) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in an hour.")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    if not verify_password(payload.answer.strip().lower(), user_doc["security_answer_hash"]):
+        recent_failed.append(now.isoformat())
+        await db.users.update_one(
+            {"user_id": user_doc["user_id"]},
+            {"$set": {"reset_failed_attempts": recent_failed}}
+        )
+        raise HTTPException(status_code=400, detail="Unable to reset. Verify your email and answer.")
+
+    # Success — update password, clear failed attempts
+    await db.users.update_one(
+        {"user_i
