@@ -1233,3 +1233,102 @@ async def delete_personal(personal_id: str, current_user: User = Depends(get_cur
     return {"message": "Deleted"}
 
 # ============ CONTEST ROUTES (Pretty Pussy of the Week) ============
+def _current_week_key() -> str:
+    now = datetime.now(timezone.utc)
+    iso = now.isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+@api_router.get("/contest/entries")
+async def list_contest_entries(current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    entries = await db.contest_entries.find(
+        {"week": week, "is_deleted": {"$ne": True}}, {"_id": 0}
+    ).sort("votes", -1).to_list(200)
+    return entries
+
+@api_router.post("/contest/entries")
+async def create_contest_entry(payload: ContestEntryCreate, current_user: User = Depends(get_current_user)):
+    media = await db.media.find_one({"media_id": payload.media_id, "user_id": current_user.user_id, "is_deleted": False})
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found in your library")
+    week = _current_week_key()
+    existing = await db.contest_entries.find_one({"week": week, "user_id": current_user.user_id, "is_deleted": {"$ne": True}})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already submitted this week")
+    entry_doc = {
+        "entry_id": f"entry_{uuid.uuid4().hex[:12]}",
+        "week": week,
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "media_id": payload.media_id,
+        "caption": (payload.caption or "").strip(),
+        "votes": 0,
+        "voters": [],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.contest_entries.insert_one(entry_doc)
+    entry_doc.pop("_id", None)
+    return entry_doc
+
+@api_router.post("/contest/entries/{entry_id}/vote")
+async def vote_contest_entry(entry_id: str, current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    entry = await db.contest_entries.find_one({"entry_id": entry_id, "week": week})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if entry["user_id"] == current_user.user_id:
+        raise HTTPException(status_code=400, detail="You cannot vote for your own entry")
+    # Check if user already voted this week
+    already = await db.contest_entries.find_one({"week": week, "voters": current_user.user_id})
+    if already:
+        raise HTTPException(status_code=400, detail="You have already voted this week")
+    await db.contest_entries.update_one(
+        {"entry_id": entry_id},
+        {"$inc": {"votes": 1}, "$addToSet": {"voters": current_user.user_id}}
+    )
+    return {"message": "Vote recorded"}
+
+@api_router.get("/contest/winner")
+async def get_contest_winner(current_user: User = Depends(get_current_user)):
+    # Last completed week winner
+    now = datetime.now(timezone.utc)
+    last_week_dt = now - timedelta(days=7)
+    iso = last_week_dt.isocalendar()
+    last_week = f"{iso[0]}-W{iso[1]:02d}"
+    winner = await db.contest_entries.find_one(
+        {"week": last_week, "is_deleted": {"$ne": True}},
+        {"_id": 0},
+        sort=[("votes", -1)]
+    )
+    if not winner:
+        return {"winner": None, "week": last_week}
+    return {"winner": winner, "week": last_week}
+
+@api_router.get("/contest/my-vote")
+async def get_my_vote(current_user: User = Depends(get_current_user)):
+    week = _current_week_key()
+    voted = await db.contest_entries.find_one({"week": week, "voters": current_user.user_id}, {"_id": 0})
+    return {"voted_entry_id": voted["entry_id"] if voted else None}
+
+# ============ HOT WIFE ROUTES ============
+
+@api_router.get("/hotwife/posts")
+async def list_hotwife_posts(current_user: User = Depends(get_current_user)):
+    posts = await db.hotwife_posts.find({"is_deleted": {"$ne": True}}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return posts
+
+@api_router.post("/hotwife/posts")
+async def create_hotwife_post(payload: HotwifePostCreate, current_user: User = Depends(get_current_user)):
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Post cannot be empty")
+    post_doc = {
+        "post_id": f"hw_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "content": payload.content.strip(),
+        "media_id": payload.media_id,
+        "likes": 0,
+        "liked_by": [],
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
