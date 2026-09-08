@@ -46,6 +46,14 @@ dump.rdb
 .DS_Store
 *.pem
 
+# Environment secrets
+.env
+backend/.env
+frontend/.env.local
+
+# Local uploaded media (replaces Emergent Object Storage)
+backend/storage/
+
 # Python
 __pycache__/
 *pyc*
