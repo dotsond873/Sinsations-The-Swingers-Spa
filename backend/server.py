@@ -516,3 +516,403 @@ async def create_checkout(request: Request, current_user: User = Depends(get_cur
         mode="payment",
         line_items=[{
             "price_data": {
+            
+"currency": plan["currency"],
+                "product_data": {"name": f"{plan['name']} Membership"},
+                "unit_amount": int(round(plan["amount"] * 100)),
+            },
+            "quantity": 1,
+        }],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata,
+    )
+    
+    transaction_doc = {
+        "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "session_id": session.id,
+        "amount": plan["amount"],
+        "currency": plan["currency"],
+        "plan_type": plan_id,
+        "payment_status": "pending",
+        "metadata": metadata,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.payment_transactions.insert_one(transaction_doc)
+    
+    return {"url": session.url, "session_id": session.id}
+
+# ============ DONATION ROUTES ============
+
+@api_router.post("/donation/checkout")
+async def create_donation_checkout(request: Request):
+    data = await request.json()
+    amount = data.get("amount")
+    origin_url = data.get("origin_url")
+    
+    if not amount or amount < 1:
+        raise HTTPException(status_code=400, detail="Invalid donation amount")
+    
+    success_url = f"{origin_url}/donation-success"
+    cancel_url = f"{origin_url}/support-us"
+    
+    metadata = {"type": "donation", "amount": str(amount)}
+
+    session = await asyncio.to_thread(
+        stripe.checkout.Session.create,
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": "Donation"},
+                "unit_amount": int(round(float(amount) * 100)),
+            },
+            "quantity": 1,
+        }],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata,
+    )
+    
+    # Record donation
+    donation_doc = {
+        "donation_id": f"donate_{uuid.uuid4().hex[:12]}",
+        "session_id": session.id,
+        "amount": float(amount),
+        "currency": "usd",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.donations.insert_one(donation_doc)
+    
+    return {"url": session.url, "session_id": session.id}
+
+@api_router.get("/payment/status/{session_id}")
+async def get_payment_status(session_id: str, current_user: User = Depends(get_current_user)):
+    transaction = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if transaction["payment_status"] in ["paid", "completed"]:
+        return {"status": "paid", "plan": transaction["plan_type"]}
+    
+    try:
+        session = await asyncio.to_thread(stripe.checkout.Session.retrieve, session_id)
+        payment_status = session.payment_status  # "paid", "unpaid", "no_payment_required"
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"payment_status": payment_status}}
+        )
+        
+        if payment_status == "paid":
+            user_check = await db.users.find_one({"user_id": current_user.user_id})
+            if not user_check.get("is_premium"):
+                await db.users.update_one(
+                    {"user_id": current_user.user_id},
+                    {"$set": {
+                        "is_premium": True,
+                        "premium_plan": transaction["plan_type"],
+                        "premium_activated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+        
+        return {"status": payment_status, "plan": transaction["plan_type"]}
+    except Exception as e:
+        logger.error(f"Payment status check failed: {e}")
+        return {"status": transaction["payment_status"], "plan": transaction["plan_type"]}
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature")
+    
+    try:
+        event = await asyncio.to_thread(
+            stripe.Webhook.construct_event, body, signature, STRIPE_WEBHOOK_SECRET
+        )
+        session_obj = event["data"]["object"]
+        
+        if event["type"] == "checkout.session.completed" and session_obj.get("payment_status") == "paid":
+            await db.payment_transactions.update_one(
+                {"session_id": session_obj["id"]},
+                {"$set": {"payment_status": "paid"}}
+            )
+            
+            metadata = session_obj.get("metadata", {}) or {}
+            user_id = metadata.get("user_id")
+            plan_id = metadata.get("plan_id")
+            
+            if user_id:
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "is_premium": True,
+                        "premium_plan": plan_id,
+                        "premium_activated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+        
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        raise HTTPException(status_code=400, detail="Webhook error")
+
+# ============ ADMIN ROUTES ============
+
+@api_router.get("/admin/pending-users")
+async def get_pending_users(admin: User = Depends(require_admin)):
+    users = await db.users.find(
+        {"approval_status": "pending"},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(100)
+    return users
+
+    @api_router.post("/admin/approve-user/{user_id}")
+async def approve_user(user_id: str, admin: User = Depends(require_admin)):
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "approval_status": "approved",
+            "is_verified": True,
+            "approved_by": admin.user_id,
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "User approved"}
+
+@api_router.post("/admin/reject-user/{user_id}")
+async def reject_user(user_id: str, reason: Dict, admin: User = Depends(require_admin)):
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "approval_status": "rejected",
+            "rejection_reason": reason.get("reason"),
+            "rejected_by": admin.user_id,
+            "rejected_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "User rejected"}
+
+# ============ REFERRAL SYSTEM ============
+
+@api_router.get("/referral/code")
+async def get_referral_code(current_user: User = Depends(get_current_user)):
+    ref_code = await db.referral_codes.find_one({"user_id": current_user.user_id}, {"_id": 0})
+    if not ref_code:
+        code = f"{current_user.name[:3].upper()}{uuid.uuid4().hex[:6].upper()}"
+        ref_doc = {
+            "code": code,
+            "user_id": current_user.user_id,
+            "uses": 0,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.referral_codes.insert_one(ref_doc)
+        return {"code": code, "uses": 0}
+    return {"code": ref_code["code"], "uses": ref_code.get("uses", 0)}
+
+@api_router.post("/referral/apply")
+async def apply_referral(code: str, current_user: User = Depends(get_current_user)):
+    ref_code = await db.referral_codes.find_one({"code": code.upper()}, {"_id": 0})
+    if not ref_code:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+    
+    if ref_code["user_id"] == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot use your own referral code")
+    
+    existing = await db.referrals.find_one({"referred_user_id": current_user.user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Referral code already applied")
+    
+    referral_doc = {
+        "referral_id": f"ref_{uuid.uuid4().hex[:12]}",
+        "referrer_user_id": ref_code["user_id"],
+        "referred_user_id": current_user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.referrals.insert_one(referral_doc)
+    await db.referral_codes.update_one({"code": code.upper()}, {"$inc": {"uses": 1}})
+    
+    return {"message": "Referral applied successfully"}
+
+@api_router.get("/referral/stats")
+async def get_referral_stats(current_user: User = Depends(get_current_user)):
+    referrals = await db.referrals.find({"referrer_user_id": current_user.user_id}, {"_id": 0}).to_list(100)
+    return {"total_referrals": len(referrals), "referrals": referrals}
+
+# ============ VERIFICATION SYSTEM ============
+
+class VerificationRequest(BaseModel):
+    method: str  # "id_selfie" or "custom_task"
+    id_photo_path: Optional[str] = None
+    selfie_photo_path: Optional[str] = None
+    task_photo_path: Optional[str] = None
+
+@api_router.post("/verification/submit")
+async def submit_verification(request: Request, current_user: User = Depends(get_current_user)):
+    data = await request.json()
+    method = data.get("method")  # "id_selfie" or "custom_task"
+    
+    if current_user.is_verified:
+        raise HTTPException(status_code=400, detail="Already verified")
+    
+    verification_doc = {
+        "verification_id": f"verify_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "user_email": current_user.email,
+        "method": method,
+        "id_photo_path": data.get("id_photo_path"),
+        "selfie_photo_path": data.get("selfie_photo_path"),
+        "task_photo_path": data.get("task_photo_path"),
+        "custom_task": data.get("custom_task"),
+        "status": "pending",
+        "admin_notes": None,
+        "requested_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.verifications.insert_one(verification_doc)
+    
+    # Create admin notification
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_request",
+        "title": "New Verification Request",
+        "message": f"{current_user.name} submitted a verification request ({method})",
+        "user_id": current_user.user_id,
+        "for_admins": True,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Verification submitted for review", "verification_id": verification_doc["verification_id"]}
+
+@api_router.get("/verification/status")
+async def get_verification_status(current_user: User = Depends(get_current_user)):
+    verification = await db.verifications.find_one(
+        {"user_id": current_user.user_id},
+        {"_id": 0}
+    )
+    if not verification:
+        return {"status": "not_submitted", "is_verified": current_user.is_verified}
+    return {"status": verification["status"], "is_verified": current_user.is_verified, "verification": verification}
+
+@api_router.post("/verification/request-task")
+async def request_custom_task(current_user: User = Depends(get_current_user)):
+    """Request admin to assign a custom verification task (for users without ID)"""
+    existing = await db.verifications.find_one({"user_id": current_user.user_id, "status": "awaiting_task"})
+    if existing:
+        return {"message": "Task request already submitted", "verification_id": existing["verification_id"]}
+    
+    verification_doc = {
+        "verification_id": f"verify_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user.user_id,
+        "user_name": current_user.name,
+        "user_email": current_user.email,
+        "method": "custom_task",
+        "status": "awaiting_task",
+        "custom_task": None,
+        "admin_notes": None,
+        "requested_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.verifications.insert_one(verification_doc)
+    
+    # Notify admins
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "task_request",
+        "title": "Custom Task Needed",
+        "message": f"{current_user.name} needs a custom verification task assigned (no ID available)",
+        "user_id": current_user.user_id,
+        "for_admins": True,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Task request submitted. Admin will assign a verification task.", "verification_id": verification_doc["verification_id"]}
+
+@api_router.get("/admin/verifications")
+async def get_pending_verifications(admin: User = Depends(require_admin)):
+    verifications = await db.verifications.find(
+        {"status": {"$in": ["pending", "awaiting_task"]}},
+        {"_id": 0}
+    {"_id": 0}
+    ).sort("requested_at", -1).to_list(100)
+    return verifications
+
+@api_router.post("/admin/assign-task/{verification_id}")
+async def assign_verification_task(verification_id: str, request: Request, admin: User = Depends(require_admin)):
+    data = await request.json()
+    custom_task = data.get("custom_task")  # e.g., "Write the number 32 on a piece of paper and take a selfie holding it"
+    
+    await db.verifications.update_one(
+        {"verification_id": verification_id},
+        {"$set": {
+            "custom_task": custom_task,
+            "status": "task_assigned",
+            "assigned_by": admin.user_id,
+            "assigned_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Get user to notify
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if verification:
+        notification_doc = {
+            "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+            "type": "task_assigned",
+            "title": "Verification Task Assigned",
+            "message": f"Your verification task: {custom_task}",
+            "user_id": verification["user_id"],
+            "for_admins": False,
+            "is_read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "Task assigned successfully"}
+
+@api_router.post("/admin/approve-verification/{verification_id}")
+async def approve_verification(verification_id: str, admin: User = Depends(require_admin)):
+    verification = await db.verifications.find_one({"verification_id": verification_id})
+    if not verification:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    # Update verification status
+    await db.verifications.update_one(
+        {"verification_id": verification_id},
+        {"$set": {
+            "status": "approved",
+            "approved_by": admin.user_id,
+            "approved_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Update user as verified
+    await db.users.update_one(
+        {"user_id": verification["user_id"]},
+        {"$set": {
+            "is_verified": True,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+            "verified_by": admin.user_id
+        }}
+    )
+    
+    # Notify user
+    notification_doc = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "type": "verification_approved",
+        "title": "Verification Approved!",
+        "message": "Congratulations! Your identity has been verified. You now have a verified badge!",
+        "user_id": verification["user_id"],
+        "for_admins": False,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification_doc)
+    
+    return {"message": "User verified successfully"}
+
+@api_router.post("/admin/reject-verification/{verification_id}")
+async def reject_verification(verification_id: str, request: Request, admin: User = Depends(require_admin)):
