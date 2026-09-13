@@ -26,6 +26,7 @@ import SupportUsPage from './pages/SupportUsPage';
 import DonationSuccessPage from './pages/DonationSuccessPage';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from '@/components/ui/sonner';
+import { Analytics } from '@vercel/analytics/react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -145,6 +146,7 @@ function App() {
       <BrowserRouter>
         <AppRouter />
         <Toaster />
+        <Analytics />
       </BrowserRouter>
     </div>
   );
